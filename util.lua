@@ -256,12 +256,14 @@ function readrecipes()
         local name = strip(split(alias, "=", 1)[1])
         assert(name); register(name)
         local targets = fmap(split(strip(split(alias, "=", 1)[2]), ","), strip)
-        for i,target in ipairs(targets) do
-          register(target)
-          assert(not res[name] or not res[name].mode)
-          res[name].mode = "alias"
-          res[name].targets = targets
+        for i,target in ipairs(targets) do register(target) end
+        -- assert(not res[name].mode)
+        if res[name].mode then
+          printf("collision: while defining alias '%s': already %s", name, res[name].mode)
+          assert(false);
         end
+        res[name].mode = "alias"
+        res[name].targets = targets
       end
     end
     return res
