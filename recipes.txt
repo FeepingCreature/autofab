@@ -1,0 +1,70 @@
+define bone
+define leather
+define seeds
+define gold ore
+define iron ore
+define copper ore
+define string
+define raw beef
+define steak
+define spider eye
+define coal
+define sugar canes
+define silicon cell
+alias wood planks = spruce wood planks
+craft bread = wheat
+...
+111
+...
+craft tnt = gunpowder,sand
+121
+212
+121
+craft world anchor = gold ingot,obsidian,diamond,ender pearl
+121
+343
+121
+craft solar panel = glass pane,silicon cell,carbon plate,electronic circuit,generator
+111
+232
+454
+craft electronic circuit = copper cable,redstone,refined iron
+111
+232
+111
+craft glass pane = glass
+111
+111
+...
+craft chest = wood
+111
+1.1
+111
+craft iron chestplate = iron ingot
+1.1
+111
+111
+craft piston = wood planks,cobblestone,iron ingot,redstone
+111
+232
+242
+craft sticky piston = piston,slimeball
+2..
+1..
+...
+craft redstone torch = stick,redstone
+1..
+2..
+...
+craft iron sword = iron ingot,stick
+.1.
+.1.
+.2.
+craft iron pickaxe = iron ingot,stick
+111
+.2.
+.2.
+craft 4 stick = wood planks
+1..
+1..
+...
