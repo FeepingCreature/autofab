@@ -108,21 +108,59 @@ list = function()
   wait(format("(%i/%i) ", page, pages))
 end
 
-retrieve = function()
-  printheader("  retrieval")
+validate = function()
+  printheader("  validation")
+  print("validating chests .. ")
   
-  term.write("item name  = "); local name = read()
-  term.write("item count = "); local num  = read()
-  if tonumber(num) and tonumber(num) > 0 then
-    print("")
-    print("Retrieving .. ")
-    local res = frun("retrieve %i %s", tonumber(num), name)
-    frun("navigate 0")
-    if not mcheck(res) then return end
-    if turtle.getItemCount(15) > 0 then
-      print("Please retrieve the item from slot:15.")
+  local data = ""
+  
+  local itemdata = readrecipes()
+  local chestid=1
+  while true do
+    local ch = chest(chestid)
+    if not ch:exists() then
+      if data:len() == 0 then
+        print("No errors. ")
+      elseif data:len() < 100 then
+        print(data)
+      else
+        print(pastebin(data))
+      end
+      frun("navigate 0")
+      wait()
+      return
     end
-    while turtle.getItemCount(15) > 0 do sleep(0.1) end
+    -- compare item numbers
+    ch:withp(function(slot)
+      ch:open(slot.id) -- grab all
+      local c = turtle.getItemCount(slot.id)
+      local s = turtle.getItemSpace(slot.id)
+      if slot.count ~= c then
+        data = data..format("Error in chest %i index %i (%s): tracking %i but found %i\n",
+          chestid, slot.id, slot.item, slot.count, c)
+      else
+        local maxsize = itemdata[slot.item] and itemdata[slot.item].stacksize
+        if maxsize and maxsize ~= s + c then
+          data = data..format("Error in chest %i index %i (%s): maximum size was %i, expected %i for material\n",
+            chestid, slot.id, slot.item, c+s, maxsize)
+        end
+      end
+    end)
+    -- compare item types
+    ch:with(function(slot)
+      if slot.item:len() > 0 then
+        turtle.select(slot.id)
+        ch:withp(function(slot2)
+          if slot2.id ~= slot.id and slot.item == slot2.item then
+            if not turtle.compareTo(slot2.id) then
+              data = data..format("Error in chest %i: %i and %i should be the same, but differ\n",
+                chestid, slot.id, slot2.id)
+            end
+          end
+        end)
+      end
+    end)
+    chestid = chestid + 1
   end
 end
 
@@ -143,18 +181,26 @@ store = function()
   if not mcheck(res) then return end
 end
 
-craft = function()
-  printheader("  crafting")
+request = function(plan)
+  if plan then printheader("  planning")
+  else printheader("  requesting") end
   term.write("result item = "); local item = read()
-  term.write("number (1)  = "); local num  = read()
-  if num == "" then num = "1" end
+  local num = split(strip(item), " ", 1)[1]
+  if tonumber(num) then
+    item = split(strip(item), " ", 1)[2]
+  else
+    num = "1"
+  end
+  -- term.write("number (1)  = "); local num  = read()
   local nn = tonumber(num)
   print()
-  printf("  crafting %i '%s' .. ", nn, item)
-  local res = true
-  for i=1,nn do
-    res = res and frun("make y %s", item)
+  if plan then
+    frun("make _plan y %i %s", nn, item)
+    wait()
+    return
   end
+  printf("  requesting %i '%s' .. ", nn, item)
+  local res = frun("make y %i %s", nn, item)
   frun("navigate 0")
   if not mcheck(res) then return end
   if turtle.getItemCount(15) > 0 then
@@ -163,16 +209,19 @@ craft = function()
   while turtle.getItemCount(15) > 0 do sleep(0.1) end
 end
 
+plan = function() return request(true) end
+
 -- textutils.slowWrite(".........")
 function selectmenu(tbl)
   printheader("Please select an action.")
   local i = 1
-  local fulllen = 33
+  local fulllen = 28
+  local leftspace = 8
   for i,k2 in ipairs(tbl) do
     local k = tbl[k2]
     if k then
-      local dots = fulllen - k2:len() - 1 - 3
-      printf("%s %s  %i", k2, rep(".", dots), i)
+      local dots = fulllen - k2:len() - 1 - 2 - leftspace
+      printf("%s%s %s %i", rep(" ", leftspace), k2, rep(".", dots), i)
     end
     i = i + 1
   end
@@ -203,11 +252,12 @@ local mainmenu = {}
 local running = true
 mainmenu["list"    ] = list     ; mainmenu[1] = "list"
 mainmenu["store"   ] = store    ; mainmenu[2] = "store"
-mainmenu["retrieve"] = retrieve ; mainmenu[3] = "retrieve"
-mainmenu["craft"   ] = craft    ; mainmenu[4] = "craft"
+mainmenu["request" ] = request  ; mainmenu[3] = "request"
+mainmenu["plan"    ] = plan     ; mainmenu[4] = "plan"
 mainmenu["upgrade" ] = upgrade  ; mainmenu[5] = "upgrade"
 mainmenu["shutdown"] = shutdown ; mainmenu[6] = "shutdown"
+mainmenu["validate"] = validate ; mainmenu[7] = "validate"
 mainmenu["exit to shell"]=function() running = false end
-mainmenu[7] = "exit to shell"
+mainmenu[8] = "exit to shell"
 while running do selectmenu(mainmenu) end
 cls()

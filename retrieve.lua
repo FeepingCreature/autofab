@@ -42,7 +42,8 @@ while left > 0 do
     error(format("out of %s: %i short", item, left))
   end
   failfun = nil
-  ch:with(function(slot)
+  -- must retrieve in REVERSE because otherwise item organization will get fucked up bad on store
+  ch:withrev(function(slot)
     if not failfun and slot.item == item then
       local tomove = min(slot.count, left)
       if tomove > 0 then

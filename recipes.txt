@@ -11,7 +11,31 @@ define spider eye
 define coal
 define sugar canes
 define silicon cell
-alias wood planks = spruce wood planks
+define clay
+define gravel
+define tin ore
+define ink sac
+define stick[64]
+alias wood planks = spruce wood planks[64], oak wood planks[64]
+alias coppers = copper ingot 13380, copper ingot 20257:64, copper
+alias tins = tin ingot 13381, tin ingot 20257:65, tin
+smelt stone[64] = cobblestone[64], 2 stick
+smelt iron ingot[64] = iron ore[64], 2 stick
+smelt refined iron[64] = iron ingot, 2 stick
+smelt tin ingot 13381[64] = tin ore[64], 2 stick
+smelt rubber[64] = sticky resin[64], 2 stick
+craft 4 oak wood planks = oak wood
+1..
+...
+...
+craft 4 spruce wood planks = spruce wood
+1..
+...
+...
+craft diamond pickaxe = stick, diamond
+222
+.1.
+.1.
 craft bread = wheat
 ...
 111
@@ -20,6 +44,10 @@ craft tnt = gunpowder,sand
 121
 212
 121
+craft workbench = wood planks
+11.
+11.
+...
 craft world anchor = gold ingot,obsidian,diamond,ender pearl
 121
 343
@@ -32,18 +60,42 @@ craft electronic circuit = copper cable,redstone,refined iron
 111
 232
 111
-craft glass pane = glass
+craft 16 glass pane = glass
 111
 111
 ...
-craft chest = wood
+craft chest = wood planks
 111
 1.1
 111
+craft iron helmet = iron ingot
+111
+1.1
+...
 craft iron chestplate = iron ingot
 1.1
 111
 111
+craft iron leggings = iron ingot
+111
+1.1
+1.1
+craft iron boots = iron ingot
+1.1
+1.1
+...
+craft 12 iron fence = refined iron
+111
+111
+...
+craft 16 iron bars = iron ingot
+111
+111
+...
+craft iron door = iron ingot
+11.
+11.
+11.
 craft piston = wood planks,cobblestone,iron ingot,redstone
 111
 232
@@ -53,8 +105,12 @@ craft sticky piston = piston,slimeball
 1..
 ...
 craft redstone torch = stick,redstone
-1..
 2..
+1..
+...
+craft 4 torch = stick,coal
+2..
+1..
 ...
 craft iron sword = iron ingot,stick
 .1.
@@ -64,7 +120,119 @@ craft iron pickaxe = iron ingot,stick
 111
 .2.
 .2.
+craft iron axe = iron ingot,stick
+11.
+12.
+.2.
+craft iron hoe = iron ingot,stick
+11.
+.2.
+.2.
+craft iron shovel = iron ingot,stick
+.1.
+.2.
+.2.
 craft 4 stick = wood planks
 1..
 1..
+...
+craft 6 copper cable = rubber,coppers
+111
+222
+111
+craft rock crusher = piston,diamond,block of steel
+121
+232
+121
+craft block of steel = steel ingot
+111
+111
+111
+craft macerator = flint,cobblestone,machine block,electronic circuit
+111
+232
+.4.
+craft machine block = refined iron
+111
+1.1
+111
+craft generator = re-battery,machine block,furnace
+1..
+2..
+3..
+craft re-battery = tins,redstone,copper cable
+.3.
+121
+121
+craft furnace = cobblestone
+111
+1.1
+111
+craft wood gear = stick
+.1.
+1.1
+.1.
+craft stone gear = cobblestone, wood gear
+.1.
+121
+.1.
+craft bc wrench = iron ingot, stone gear
+1.1
+.2.
+.1.
+craft 8 wooden pipe = wood planks, glass
+121
+...
+...
+craft 8 stone pipe = stone, glass
+121
+...
+...
+craft 8 cobblestone pipe = cobblestone, glass
+121
+...
+...
+craft redstone engine = wood planks, glass, wood gear, piston
+111
+.2.
+343
+craft 3 paper = sugar canes
+111
+...
+...
+craft book = paper, leather
+11.
+12.
+...
+craft descriptive book = book, feather
+12.
+...
+...
+craft monitor = stone, glass pane
+111
+121
+111
+craft console = stone, glass pane, redstone
+111
+131
+121
+craft turtle = iron ingot, console, chest
+111
+121
+131
+craft crafty turtle = turtle, workbench
+...
+21.
+...
+craft modem = stone, redstone torch
+111
+121
+111
+craft mining turtle = turtle, diamond pickaxe
+...
+.12
+...
+craft wireless crafty turtle = turtle, workbench, modem
+...
+312
 ...

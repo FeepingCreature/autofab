@@ -27,12 +27,22 @@ function up   () add("U") end
 function down () add("D") end
 function left () add("L") end
 function right() add("R") end
+function move(s) add(s) end
 function commit()
-  movestr = movestr
-    :gsub("FRRF", "RR"):gsub("FLLF", "LL")
-    :gsub("ULLD", "LL"):gsub("URRD", "RR")
-    :gsub("LR", ""):gsub("RL", "")
-  -- print("commit: "..movestr)
+  local changed = true
+  while changed do
+    local start = movestr
+    movestr = movestr
+      :gsub("FRRF", "RR"):gsub("FLLF", "LL")
+      :gsub("ULLD", "LL"):gsub("URRD", "RR")
+      :gsub("LR", ""):gsub("RL", "")
+      :gsub("DU", ""):gsub("UD", "")
+      :gsub("LLLL", ""):gsub("RRRR", "")
+      :gsub("LLL", "R"):gsub("RRR", "L")
+    changed = movestr ~= start
+  end
+  --print("commit: "..movestr)
+  --assert(false)
   for i=1,movestr:len() do
     ch = movestr:sub(i,i)
     if     (ch == "F") then _fwd  ()
@@ -45,6 +55,8 @@ function commit()
   movestr = ""
 end
 function moveto(loc)
+  if loc == "monitor" then loc = "1" end
+  
   f = io.open("location.txt", "r")
   location = 0
   if f then
@@ -55,39 +67,28 @@ function moveto(loc)
   location_i = tonumber(location)
   -- home
   if location == loc then return end
-  if location == "-1" then
-    right()
-    right()
-    fwd()
-    fwd()
-    left()
-    up()
-    fwd()
-  end
+  if location == "-1" then move("RRFFLUF") end
   if location_i and location_i > 0 then
     left()
     times(location_i*2-2, fwd)
     up()
     fwd()
   end
+  if location == "furnace_fuel" then move("DLLFFFFFFFFRFFFLFFLUF") end
+  if location == "furnace_input" then move("DDDLLFFFFFFFFRFFFLFFLUF") end
+  if location == "furnace_output" then move("DDLFFFLFFFFFFFFRFFFLFFLUF") end
   -- and to target
   if loc == "-1" then
-    left()
-    left()
-    fwd()
-    down()
-    right()
-    fwd()
-    fwd()
+    move("LLFDRFF")
   end
   if loc_i and loc_i > 0 then
-    right()
-    right()
-    fwd()
-    down()
+    move("RRFD")
     times(loc*2-2, fwd)
     left()
   end
+  if loc == "furnace_fuel" then move("LLFDRFFRFFFLFFFFFFFFU") end
+  if loc == "furnace_input" then move("LLFDRFFRFFFLFFFFFFFFUUU") end
+  if loc == "furnace_output" then move("LLFDRFFRFFFLFFFFFFFFRFFFLUU") end
   commit()
   f = io.open("location.txt","w")
   f:write(loc)
