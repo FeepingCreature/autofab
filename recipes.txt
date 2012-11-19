@@ -15,20 +15,23 @@ define clay
 define gravel
 define tin ore
 define ink sac
+define stone stairs
 define stick[64]
 alias wood planks = spruce wood planks[64], oak wood planks[64]
 alias coppers = copper ingot 13380, copper ingot 20257:64, copper
 alias tins = tin ingot 13381, tin ingot 20257:65, tin
+alias bronzes = bronze ingot 13379, bronze
 smelt stone[64] = cobblestone[64], 2 stick
 smelt iron ingot[64] = iron ore[64], 2 stick
 smelt refined iron[64] = iron ingot, 2 stick
 smelt tin ingot 13381[64] = tin ore[64], 2 stick
+smelt copper ingot 13380[64] = copper ore[64], 2 stick
 smelt rubber[64] = sticky resin[64], 2 stick
-craft 4 oak wood planks = oak wood
+craft 4 oak wood planks = oak wood[64]
 1..
 ...
 ...
-craft 4 spruce wood planks = spruce wood
+craft 4 spruce wood planks = spruce wood[64]
 1..
 ...
 ...
@@ -235,4 +238,20 @@ craft mining turtle = turtle, diamond pickaxe
 craft wireless crafty turtle = turtle, workbench, modem
 ...
 312
+...
+craft compressor = stone, machine block, electronic circuit
+1.1
+121
+131
+craft canning machine = tins, electronic circuit, machine block
+121
+131
+111
+craft ic2 wrench = bronzes
+1.1
+111
+.1.
+craft 4 bronze ingot 13379 = coppers, tins
+11.
+12.
 ...

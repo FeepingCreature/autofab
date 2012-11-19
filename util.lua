@@ -235,7 +235,7 @@ function _readrecipes()
     local map = {1,2,3,  5,6,7,  9,10,11}
     local res = {}
     local process = nil
-    function register(name)
+    local function register(name)
       local item = {}
       local test = tonumber(split(split(name, "[", 1)[2], "]", 1)[1])
       name = cleanname(name)
@@ -246,7 +246,7 @@ function _readrecipes()
         else item.stacksize = test end
       end
     end
-    function merge(id, thing)
+    local function merge(id, thing)
       register(id)
       for k, v in pairs(thing) do res[id][k] = v end
     end
@@ -294,6 +294,7 @@ function _readrecipes()
         local count = 1
         count, name = countit(name)
         assert(name); register(name)
+        name = cleanname(name)
         
         if res[name].mode then
           error("double definitions for "..name)
@@ -302,6 +303,8 @@ function _readrecipes()
         
         local list = fmap(split(split(craft, "=", 1)[2], ","), strip)
         for i,v in ipairs(list) do register(list[i]) end
+        list = fmap(list, cleanname)
+        
         local shape = {}
         shape.list = list
         
@@ -343,8 +346,11 @@ function _readrecipes()
       elseif alias then
         local name = strip(split(alias, "=", 1)[1])
         assert(name); register(name); name = cleanname(name)
-        local targets = fmap(fmap(split(strip(split(alias, "=", 1)[2]), ","), strip), cleanname)
+        
+        local targets = fmap(split(strip(split(alias, "=", 1)[2]), ","), strip)
         for i,target in ipairs(targets) do register(target) end
+        targets = fmap(targets, cleanname)
+        
         -- assert(not res[name].mode)
         if res[name].mode then
           printf("collision: while defining alias '%s': already %s", name, res[name].mode)
@@ -367,7 +373,7 @@ function optrec(recipe, itemdata)
   if lastrec and lastrec ~= 1 then
     recipe = dup(recipe)
     -- now, swap lastrec and 1 in all the lists
-    function swap(f, a, b)
+    local function swap(f, a, b)
       local temp = f[a]
       f[a] = f[b]
       f[b] = temp
@@ -429,7 +435,7 @@ end
 function didyoumean(name)
   local recipes = readrecipes()
   local res = ""
-  function add(s)
+  local function add(s)
     if res:len() > 0 then
       res = res .. ", "
     end
@@ -468,7 +474,7 @@ function updatemon(i, t, tf, msg, ...)
   local dir = "right"
   rednet.open(dir)
   local cmd = ""
-  function timefmt(t)
+  local function timefmt(t)
     t = math.floor(t)
     local mins = math.floor(t / 60)
     t = t - mins * 60
@@ -477,7 +483,7 @@ function updatemon(i, t, tf, msg, ...)
     if hours > 0 then return string.format("%ih%im", hours, mins)
     else return string.format("%im%i", mins, t) end
   end
-  function addcmd(s, ...)
+  local function addcmd(s, ...)
     s = string.format(s, ...)
     if cmd:len() > 0 then cmd = cmd .. "; " end
     cmd = cmd .. s
