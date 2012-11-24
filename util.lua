@@ -53,6 +53,11 @@ function fmap(list, fun)
   return res
 end
 
+_mark = nil
+function mark(text, ...)
+  if _mark then _mark(format(text, ...)) end
+end
+
 function sstarts(text, with)
   return strip(starts(text, with))
 end
@@ -341,8 +346,64 @@ function getnavinfo(loc)
   return res
 end
 
+function perfcheck(info, fun)
+  local startt = os.clock()
+  
+  local markerinfo = nil
+  local previnfo = "start"
+  local prevt = startt
+  local function recordmarker(info)
+    local t = os.clock()
+    if not markerinfo then markerinfo = {} end
+    markerinfo[info] = {from = previnfo, to = info, delta = t - prevt}
+    previnfo, prevt = info, t
+  end
+  local function largestmarker()
+    local res = nil
+    for k, v in pairs(markerinfo) do
+      if not res or res.delta < v.delta then res = v end
+    end
+    return res
+  end
+  
+  -- global!
+  local backup = _mark
+  _mark = recordmarker
+  local res = fun()
+  _mark = backup
+  local endt = os.clock()
+  
+  if endt - startt > 1 then
+    local mesg = ""
+    if not markerinfo then
+      mesg = format("%fs: %s", endt - startt, info)
+    else
+      local largest = largestmarker()
+      mesg = format("%fs: %s (longest from %s to %s with %fs)", endt - startt, info, largest.from, largest.to, largest.delta)
+    end
+    printf("WARN: %s", mesg)
+    
+    local f = io.open("warnings.txt", "r")
+    local data = ""
+    if f then
+      data = f:read()
+      f:close()
+    end
+    
+    data = data .. mesg
+    
+    f = io.open("warnings.txt", "w")
+    f:write(data)
+    f:close()
+  end
+  return res
+end
+
 function optmove(movestr)
+  local original = movestr
   local changed = true
+  
+  mark("optmove(%s) start", movestr) 
   local yield = yieldevery(32)
   while changed do
     local start = movestr
@@ -363,6 +424,7 @@ function optmove(movestr)
     yield()
     changed = movestr ~= start
   end
+  mark("optmove(%s) end (res %s)", original, movestr)
   return movestr
 end
 
@@ -392,15 +454,17 @@ function costforchestaccess(ch)
   return thatchest:items()
 end
 
-function chest_usecost(ch)
-  local nav = nil
-  if chestcache and chestcache[ch] then nav = chestcache[ch]
+function chest_usecost(prefix, ch, chestcache)
+  assert(chestcache)
+  if chestcache and chestcache[ch] then return chestcache[ch]
   else
-    nav = optmove(getinvnavinfo(getlocation())..getnavinfo(format("chest%i", ch)))
-    if chestcache then chestcache[ch] = nav end
+    mark("calculate cost for chest %i: start", ch)
+    local nav = optmove(prefix..getnavinfo(format("chest%i", ch)))
+    local res = costfornav(nav) + costforchestaccess(ch) * 2
+    mark("calculate cost for chest %i: end", ch)
+    if chestcache then chestcache[ch] = res end
+    return res
   end
-  -- local nav = optmove(getnavinfo(format("chest%i", ch)))
-  return costfornav(nav)+costforchestaccess(ch)*2
 end
 
 function _readrecipes()
@@ -764,4 +828,29 @@ function pastebin(data)
     assert(false)
   end
   return "http://pastebin.ca/"..starts(res, "SUCCESS:")
+end
+
+trace = nil
+function maketracing(name)
+  local fun = _G[name]
+  if not fun then
+    printf("tried to maketracing(%s) but no such fun in global namespace!", name)
+    assert(false)
+  end
+  local prev = trace
+  _G[name] = function(...)
+    trace = {name = name, prev = prev}
+    local res = fun(...)
+    trace = trace.prev
+    return res
+  end
+end
+
+function printbacktrace()
+  local i = 1
+  local cur = trace
+  while cur do
+    printf("%i: %s", i, cur.name)
+    cur = cur.prev
+  end
 end

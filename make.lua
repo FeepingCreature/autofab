@@ -36,7 +36,12 @@ function getnum(item)
   return 0
 end
 function setnum(item, num) items[item] = num end
-function addcommand(cmd) table.insert(items.commands, cmd) end
+
+function addcommand(cmd)
+  printf("add to %i", #items.commands)
+  printbacktrace()
+  table.insert(items.commands, cmd)
+end
 function foritems(fun)
   local cur = items
   local checked = {}
@@ -96,7 +101,7 @@ end
 
 local itemdata = readrecipes()
 
-debug = false
+debugme = false
 
 function resolve(top)
   local forall = foritems
@@ -120,7 +125,7 @@ function resolve(top)
     local changed = false
     for i,v in ipairs(todo) do changed = true
       while getnum(v) < 0 do
-        if debug then printf("craft resolve %s (%i)", v, getnum(v)) end
+        if debugme then printf("craft resolve %s (%i)", v, getnum(v)) end
         addfront(mkcraft(recipe(v, itemdata)))
       end
     end
@@ -138,7 +143,7 @@ function resolve(top)
     local changed = false
     for i,v in ipairs(todo) do changed = true
       while getnum(v) < 0 do
-        if debug then printf("machine resolve %s (%i)", v, getnum(v)) end
+        if debugme then printf("machine resolve %s (%i)", v, getnum(v)) end
         addfront(mkmachine(v))
       end
     end
@@ -263,11 +268,11 @@ function mkcraft(rec)
         -- substitution complete - try new plan
         start()
         local res = mkcraft(rec_copy)
-        -- debug = true
-        resolve(true)()
-        -- debug = false
         local temp = getnum(rec_copy.item) -- backup
-        setnum(rec_copy.item, 0) -- make sure the topisvalid doesn't trip over this
+        setnum(rec_copy.item, 0) -- make sure the resolve/topisvalid doesn't trip over this
+        -- debugme = true
+        resolve(true)()
+        -- debugme = false
         if (topisvalid()) then
           setnum(rec_copy.item, temp) -- restore
           commit()
@@ -322,8 +327,20 @@ function produce(item, num)
   store(toreturn, goal)
 end
 
+print(produce)
+print(_G.produce)
+print(_G["produce"])
+for k,v in pairs(_G) do if k:find("produce") then print(k) end end
+
+maketracing("produce")
+maketracing("mkfetch")
+maketracing("resolve")
+maketracing("mkcraft")
+maketracing("mkmachine")
+
 if getnum(goal) < toreturn then
-  produce(goal, toreturn)
+  local function prod() produce(goal, toreturn) end
+  xpcall(prod, debug.traceback)
   assert(not items.prev) -- make sure items list is closed
 end
 
@@ -551,20 +568,20 @@ function apply(stream, opt)
 end
 
 local yield = yieldevery(10)
-local startopts = os.clock()
-local changed = true -- true = enable opts, false = disable opts
-while changed do
-  -- once we find a pass that made changes, restart!
-  -- in other words, only move on once we've exhausted possibilities
-  yield()
-  changed = false
-  for i, v in ipairs(opts) do if not changed then
-      local opt_changed
-      items.commands, opt_changed = apply(items.commands, v)
-      changed = changed or opt_changed
-  end end
-end
-printf("Optimized in %fs", os.clock() - startopts)
+perfcheck("optimize task plan", function()
+  local changed = true -- true = enable opts, false = disable opts
+  while changed do
+    -- once we find a pass that made changes, restart!
+    -- in other words, only move on once we've exhausted possibilities
+    yield()
+    changed = false
+    for i, v in ipairs(opts) do if not changed then
+        local opt_changed
+        items.commands, opt_changed = apply(items.commands, v)
+        changed = changed or opt_changed
+    end end
+  end
+end)
 
 local planlength = 0
 local data = ""

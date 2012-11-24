@@ -4,7 +4,7 @@ define seeds
 define gold ore
 define iron ore
 define copper ore
-define string
+define string[64]
 define raw beef
 define steak
 define spider eye
@@ -411,6 +411,26 @@ craft 8 empty cell[64] = tins
 craft fuel can = tins
 .11
 1.1
+111
+craft dispenser = cobblestone, bow, redstone
+111
+121
+131
+craft bow = stick, string
+.12
+1.2
+.12
+craft redstone repeater = redstone torch, redstone, stone
+121
+333
+...
+craft stone brick[64] = stone
+11.
+11.
+...
+craft 4 stone brick stairs[64] = stone brick
+1..
+11.
 111
 -- jesus.
 craft quarry = iron gear, redstone, gold gear, diamond gear, diamond pickaxe

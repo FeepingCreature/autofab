@@ -66,9 +66,12 @@ end
 local chestorder = {}
 for i=startchest,countchests() do table.insert(chestorder, i) end
 -- load levelling
-chestcache = {}
-table.sort(chestorder, function(ch1, ch2) return chest_usecost(ch1) < chest_usecost(ch2) end)
-chestcache = nil
+local chestcache = {}
+perfcheck("sort chests", function()
+  -- local prefix = ""
+  local prefix = getinvnavinfo(getlocation())
+  table.sort(chestorder, function(ch1, ch2) return chest_usecost(prefix, ch1, chestcache) < chest_usecost(prefix, ch2, chestcache) end)
+end)
 
 -- try to fill up existing chests first
 for q,i in ipairs(chestorder) do
