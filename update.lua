@@ -11,5 +11,6 @@ else
   update("util")
   update("mainmenu")
   update("recipes.db")
+  update("makechest")
   os.reboot()
 end

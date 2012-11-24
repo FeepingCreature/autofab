@@ -126,7 +126,7 @@ validate = function()
       else
         print(pastebin(data))
       end
-      frun("navigate 0")
+      frun("navigate home")
       wait()
       return
     end
@@ -177,7 +177,7 @@ store = function()
   print("")
   print("Storing .. ")
   local res = frun("store %s", name)
-  frun("navigate 0")
+  frun("navigate home")
   if not mcheck(res) then return end
 end
 
@@ -201,7 +201,7 @@ request = function(plan)
   end
   printf("  requesting %i '%s' .. ", nn, item)
   local res = frun("make y %i %s", nn, item)
-  frun("navigate 0")
+  frun("navigate home")
   if not mcheck(res) then return end
   if turtle.getItemCount(15) > 0 then
     print("Please retrieve the item from slot:15.")

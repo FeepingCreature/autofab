@@ -21,8 +21,9 @@ if args[start] == "yes" then starts_high = true; start = start + 1 end
 local totransfer = nil
 if tonumber(args[start]) then totransfer = tonumber(args[start]); start = start + 1 end
 
-local startchest = 2
-if internal then startchest = 1 end
+-- local startchest = 2
+-- if internal then startchest = 1 end
+local startchest = 1 -- not necessary now that we have load levelling
 
 if not args[start] or args[start]:len() == 0 then
   error("Expected argument: item name")
@@ -62,8 +63,16 @@ function countchests()
   end
 end
 
+local chestorder = {}
+for i=startchest,countchests() do table.insert(chestorder, i) end
+-- load levelling
+chestcache = {}
+table.sort(chestorder, function(ch1, ch2) return chest_usecost(ch1) < chest_usecost(ch2) end)
+chestcache = nil
+
 -- try to fill up existing chests first
-for i=startchest,countchests() do
+for q,i in ipairs(chestorder) do
+  -- printf("chest: %i = %i", q, i)
   local ch = chest(i)
   ch:with(function(slot)
     if slot.item == item then
@@ -82,9 +91,13 @@ for i=startchest,countchests() do
   end)
 end
 -- now, fill the first empty slot with the rest
-local i=startchest
+local i=1
 while totransfer > 0 do
-  local ch = chest(i)
+  if i > #chestorder then
+    printf("No such chest: %i", i)
+    assert(false)
+  end
+  local ch = chest(chestorder[i])
   ch:with(function(slot)
     if totransfer > 0 and slot.count == 0 then
       ch:replace(slot.id, function()

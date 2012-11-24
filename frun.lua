@@ -1,3 +1,4 @@
+-- fetch and run
 tail = function(tbl)
   res = {}
   for k,v in ipairs(tbl) do
@@ -19,7 +20,7 @@ join = function(tbl, j)
 end
 args = { ... }
 data = http.get("http://feephome.no-ip.org/~feep/ftblua/"..args[1]..".lua"):readAll()
-f = io.open(args[1],"w")
+local f = io.open(args[1],"w")
 f:write(data)
 f:close()
 shell.run(args[1], join(tail(args), " "))

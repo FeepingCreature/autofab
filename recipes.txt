@@ -8,26 +8,71 @@ define string
 define raw beef
 define steak
 define spider eye
-define coal
+define coal[64]
 define sugar canes
 define silicon cell
 define clay
 define gravel
-define tin ore
+define tin ore[64]
 define ink sac
 define stone stairs
 define stick[64]
-alias wood planks = spruce wood planks[64], oak wood planks[64]
+define lapis lazuli[64]
+define glowstone dust[64]
+define bauxite ore[64]
+define uranium ore[64]
+define iridium ore[64]
+define apatite[64]
+alias wood planks = spruce wood planks[64], oak wood planks[64], fir wood plank[64], jungle wood planks[64]
 alias coppers = copper ingot 13380, copper ingot 20257:64, copper
 alias tins = tin ingot 13381, tin ingot 20257:65, tin
 alias bronzes = bronze ingot 13379, bronze
-smelt stone[64] = cobblestone[64], 2 stick
-smelt iron ingot[64] = iron ore[64], 2 stick
-smelt refined iron[64] = iron ingot, 2 stick
-smelt tin ingot 13381[64] = tin ore[64], 2 stick
-smelt copper ingot 13380[64] = copper ore[64], 2 stick
-smelt rubber[64] = sticky resin[64], 2 stick
+defop smelt: efurnace_output = efurnace_input[down]
+smelt stone[64] = cobblestone[64]
+-- smelt iron ingot[64] = iron ore[64]
+smelt iron ingot[64] = iron dust[64]
+smelt refined iron[64] = iron ingot
+-- smelt tin ingot 13381[64] = tin ore[64]
+smelt tin ingot 13381[64] = tin dust[64]
+-- smelt copper ingot 13380[64] = copper ore[64]
+smelt copper[64] = copper dust[64]
+smelt glass[64] = sand[64]
+smelt gold ingot[64] = gold dust
+
+-- smelt rubber[64] = sticky resin[64]
+defop extract: extractor_output = extractor_input[down]
+extract 3 rubber[64] = sticky resin[64]
+
+defop compress: compressor_output = compressor_input[down]
+defop macerate: macerator_output = macerator_input[down]
+compress carbon plate = raw carbon mesh
+
+macerate 2 iron dust[64] = iron ore[64]
+macerate 2 gold dust[64] = gold ore[64]
+macerate 2 tin dust[64] = tin ore[64]
+macerate 2 copper dust[64] = copper ore[64]
+macerate sand[64] = cobblestone[64]
+
+craft raw carbon mesh[64] = raw carbon fibre
+11.
+...
+...
+craft raw carbon fibre[64] = coal dust
+11.
+11.
+...
+macerate coal dust[64] = coal
+
+alias fir logs[64] = fir log 1303[64], fir log 1315[64]
+craft 4 fir wood plank = fir logs
+1..
+...
+...
 craft 4 oak wood planks = oak wood[64]
+1..
+...
+...
+craft 3 jungle wood planks = rubber wood[64]
 1..
 ...
 ...
@@ -43,7 +88,7 @@ craft bread = wheat
 ...
 111
 ...
-craft tnt = gunpowder,sand
+craft tnt = gunpowder, sand
 121
 212
 121
@@ -111,7 +156,7 @@ craft redstone torch = stick,redstone
 2..
 1..
 ...
-craft 4 torch = stick,coal
+craft 4 torch[64] = stick, coal
 2..
 1..
 ...
@@ -171,6 +216,15 @@ craft furnace = cobblestone
 111
 1.1
 111
+craft iron furnace = iron ingot, furnace
+.1.
+1.1
+121
+craft electric furnace = electronic circuit, redstone, iron furnace
+.1.
+232
+...
+-- gears
 craft wood gear = stick
 .1.
 1.1
@@ -179,6 +233,23 @@ craft stone gear = cobblestone, wood gear
 .1.
 121
 .1.
+craft iron gear = iron ingot, stone gear
+.1.
+121
+.1.
+craft tin gear = tins, stone gear
+.1.
+121
+.1.
+craft gold gear = gold ingot, iron gear
+.1.
+121
+.1.
+craft diamond gear = diamond, gold gear
+.1.
+121
+.1.
+
 craft bc wrench = iron ingot, stone gear
 1.1
 .2.
@@ -255,3 +326,94 @@ craft 4 bronze ingot 13379 = coppers, tins
 11.
 12.
 ...
+craft batbox = wood planks, copper cable, re-battery
+121
+333
+111
+craft disk drive = stone, redstone
+111
+121
+121
+craft floppy disk = redstone, paper
+12.
+...
+...
+craft industrial centrifuge = refined iron, advanced circuit, advanced machine block, extractor
+121
+343
+121
+craft advanced circuit = redstone, glowstone, lapis lazuli, electronic circuit
+121
+343
+121
+craft advanced machine block = advanced alloy, carbon plate, machine block
+.1.
+232
+.1.
+compress advanced alloy = mixed metal ingot[64]
+craft crafting table = wood planks
+11.
+11.
+...
+craft rolling machine = iron ingot, piston, crafting table
+121
+232
+121
+craft treetap[1] = wood planks
+.1.
+111
+1..
+-- because treetaps have [1]
+craft extractor = treetap, machine block, treetap,  treetap, electronic circuit, treetap
+123
+456
+...
+craft electric wrench = ic2 wrench, electronic circuit, re-battery
+..1
+.2.
+3..
+craft clock = gold ingot, redstone
+.1.
+121
+.1.
+craft item frame = stick, leather
+111
+121
+111
+craft overclocker upgrade = 10k coolant cell, copper cable, electronic circuit
+111
+232
+...
+craft electrical engine = tins, glass, tin gear, piston
+111
+.2.
+343
+craft bucket = iron ingot
+...
+1.1
+.1.
+craft liquid transposer = bucket, glass, machine frame, coppers, redstone reception coil
+.1.
+232
+454
+craft machine frame = iron ingot, glass, gold ingot
+121
+232
+121
+craft redstone reception coil = redstone, gold ingot
+..1
+.2.
+1..
+craft 8 empty cell[64] = tins
+.1.
+1.1
+.1.
+craft fuel can = tins
+.11
+1.1
+111
+-- jesus.
+craft quarry = iron gear, redstone, gold gear, diamond gear, diamond pickaxe
+121
+313
+454

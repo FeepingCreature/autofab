@@ -1,4 +1,6 @@
 -- I fucking hate Lua.
+format = string.format
+function printf(text, ...) print(format(text, ...)) end
 function split(self, sep, max)
   if not self then return {} end
   assert(sep)
@@ -24,6 +26,16 @@ function split(self, sep, max)
   return rec
 end
 
+function join(list, sep)
+  sep = sep or ""
+  local res = ""
+  for i, v in ipairs(list) do
+    if res:len() > 0 then res = res .. sep end
+    res = res .. v
+  end
+  return res
+end
+
 function strip(s)
   if not s then return nil end
   while s:len() > 0 and (
@@ -41,6 +53,23 @@ function fmap(list, fun)
   return res
 end
 
+function sstarts(text, with)
+  return strip(starts(text, with))
+end
+
+function sslice(text, pattern)
+  local res = fmap(split(text, pattern, 1), strip)
+  return res[1], res[2]
+end
+
+function ssplit(text, pattern)
+  return fmap(split(text, pattern), strip)
+end
+
+function times(k, f)
+  for i=1,k do f() end
+end
+
 function dup(tbl)
   res = {}
   for k, v in pairs(tbl) do res[k] = v end
@@ -50,6 +79,7 @@ end
 function download(name, to)
   print(name.." --> "..to)
   data = http.get("http://feephome.no-ip.org/~feep/ftblua/"..name):readAll()
+  sleep(0) -- yield
   f = io.open(to, "w")
   f:write(data)
   f:close()
@@ -66,11 +96,24 @@ function update(file)
 end
 
 function goback()
-  shell.run("navigate", "0")
+  shell.run("navigate", "home")
 end
+
+function yieldevery(i)
+  local cur = 0
+  return function()
+    cur = cur + 1
+    if cur < i then return end
+    cur = 0
+    sleep(0)
+  end
+end
+
+local fileyield = yieldevery(16)
 
 function withfile(fname, mode)
   return function(fun)
+    fileyield()
     local f = io.open(fname, mode)
     if not f then error ("No such file "..fname) end
     local res = fun(f)
@@ -80,9 +123,17 @@ function withfile(fname, mode)
 end
 
 function starts(text, t2)
+  if not text then return nil end
   if t2:len() > text:len() then return false end
   if text:sub(1,t2:len()) ~= t2 then return false end
   return text:sub(t2:len()+1, text:len())
+end
+
+function ends(text, t2)
+  if not text then return nil end
+  if t2:len() > text:len() then return false end
+  if text:sub(-t2:len(),-1) ~= t2 then return false end
+  return text:sub(1, text:len()-t2:len())
 end
 
 function countit(s)
@@ -98,6 +149,7 @@ function chest(i)
     transferred = 0,
     filename = function(self) return string.format("chest%i.db", self.chestid) end,
     exists = function(self)
+      fileyield()
       local f = io.open(self:filename(), "r")
       local res = false
       if f then
@@ -107,6 +159,7 @@ function chest(i)
       return res
     end,
     readopen = function(self)
+      fileyield()
       local f = io.open(self:filename(), "r")
       if not f then error(string.format("No such chest: %i", self.chestid)) end
       return f
@@ -186,6 +239,7 @@ function chest(i)
       f:close()
       if not passive then
         
+        sleep(0) -- yield
         f = io.open(self:filename(), "w")
         f:write(strip(newdata).."\n")
         f:close()
@@ -203,7 +257,7 @@ function chest(i)
     end,
     open = function(self, to)
       if self.transferred >= to then return end
-      shell.run("navigate", string.format("%i", self.chestid))
+      shell.run("navigate", string.format("chest%i", self.chestid))
       for k=self.transferred+1,to do 
         turtle.select(k)
         turtle.suck()
@@ -230,11 +284,128 @@ function cleanname(name)
   return strip(name)
 end
 
+function getlocation()
+  fileyield()
+  local f = io.open("location.txt", "r")
+  local location = nil
+  if f then
+    location = f:read()
+    f:close()
+  end
+  return location
+end
+
+function rld(str)
+  local res = ""
+  local rep = nil
+  function flush() if rep then
+    rep = rep - 1 -- one is already written
+    assert(res:len())
+    for k=1,rep do
+      res = res..res:sub(-1, -1)
+    end
+    rep = nil
+  end end
+  for i=1,str:len() do
+    local ch = str:sub(i,i)
+    local digit = tonumber(ch)
+    if not digit then
+      flush()
+      res = res..ch
+    else
+      if not rep then rep = digit
+      else rep = rep * 10 + digit end
+    end
+  end
+  flush()
+  return res
+end
+
+assert(rld("LF5R") == "LFFFFFR")
+assert(rld("RF15L") == "RFFFFFFFFFFFFFFFL")
+
+function gotnavinfo(loc)
+  return withfile("locations.db","r")(function(f)
+    for line in f:lines() do
+      local info = strip(starts(strip(starts(line, loc)), "="))
+      if info then return rld(info:upper()) end
+    end
+    return nil
+  end)
+end
+
+function getnavinfo(loc)
+  if not loc then return "" end
+  local res = gotnavinfo(loc)
+  if not res then error("Unknown location: '"..loc.."'") end
+  return res
+end
+
+function optmove(movestr)
+  local changed = true
+  local yield = yieldevery(32)
+  while changed do
+    local start = movestr
+    movestr = movestr
+      :gsub("FRRF", "RR"):gsub("FLLF", "LL")
+      :gsub("LR", ""):gsub("RL", "")
+      :gsub("DU", ""):gsub("UD", "")
+      :gsub("LLLL", ""):gsub("RRRR", "")
+      :gsub("LLL", "R"):gsub("RRR", "L")
+      :gsub("FRFRF", "RFR"):gsub("FLFLF", "LFL")
+      :gsub("LDLU", "LL"):gsub("LULD", "LL")
+      :gsub("RDRU", "RR"):gsub("RURD", "RR")
+      :gsub("FDRFRF", "RFDR"):gsub("FDLFLF", "LFDL")
+      :gsub("UL", "LU"):gsub("UR", "RU")
+      :gsub("DL", "LD"):gsub("DR", "RD")
+      :gsub("FRDFDFRFRUFUF", "L"):gsub("FDFLDFLFUFLUF", "R")
+      :gsub("FLDFDFLFLUFUF", "R"):gsub("FDFRDFRFUFRUF", "L")
+    yield()
+    changed = movestr ~= start
+  end
+  return movestr
+end
+
+function getinvnavinfo(loc)
+  local nav = getnavinfo(loc)
+  local res = ""
+  for i=nav:len(),1,-1 do
+    local sub = nav:sub(i,i)
+    if sub == "F" then res = res.."F"
+    elseif sub == "B" then res = res.."B"
+    elseif sub == "L" then res = res.."R"
+    elseif sub == "R" then res = res.."L"
+    elseif sub == "U" then res = res.."D"
+    elseif sub == "D" then res = res.."U"
+    else error("wat: '"..sub.."'") end
+  end
+  return optmove("LL"..res.."LL")
+end
+
+function costfornav(nav)
+  return nav:len()
+end
+
+function costforchestaccess(ch)
+  local thatchest = chest(ch)
+  assert(thatchest:exists())
+  return thatchest:items()
+end
+
+function chest_usecost(ch)
+  local nav = nil
+  if chestcache and chestcache[ch] then nav = chestcache[ch]
+  else
+    nav = optmove(getinvnavinfo(getlocation())..getnavinfo(format("chest%i", ch)))
+    if chestcache then chestcache[ch] = nav end
+  end
+  -- local nav = optmove(getnavinfo(format("chest%i", ch)))
+  return costfornav(nav)+costforchestaccess(ch)*2
+end
+
 function _readrecipes()
   return withfile("recipes.db","r")(function(f)
-    local map = {1,2,3,  5,6,7,  9,10,11}
     local res = {}
-    local process = nil
     local function register(name)
       local item = {}
       local test = tonumber(split(split(name, "[", 1)[2], "]", 1)[1])
@@ -247,48 +418,47 @@ function _readrecipes()
       end
     end
     local function merge(id, thing)
+      local count = nil
+      count, id = countit(id) -- eat number
+      
       register(id)
+      id = cleanname(id)
+      assert(res[id] and nil == res[id].mode)
       for k, v in pairs(thing) do res[id][k] = v end
     end
+    
+    oplist = {}
+    function haveop(name) return nil ~= oplist[name] end
+    
+    local map = {1,2,3,  5,6,7,  9,10,11}
+    local process = nil
+    local i = 1
     for line in f:lines() do
+      line = sslice(line, "--")
       local define = starts(line, "define ");
       local craft = starts(line, "craft ");
       local alias = starts(line, "alias ");
-      local smelt = starts(line, "smelt ");
-      if process then
+      local defop = starts(line, "defop ");
+      local opname = strip(split(line, " ", 1)[1])
+      
+      if not line or line:len() == 0 then
+      elseif process then
         process(line)
       elseif define then
         register(define)
-      elseif smelt then
-        local name = strip(split(smelt, "=", 1)[1])
-        local count = 1
-        count, name = countit(name)
-        assert(name); register(name)
-        name = cleanname(name)
-        
-        if res[name].mode then
-          error("double definitions for "..name)
-        end
-        
-        local list = fmap(split(split(smelt, "=", 1)[2], ","), strip)
-        assert(list[1] and list[2] and not list[3])
-        
-        register(list[1])
-        register(list[2])
-        
-        list[1] = cleanname(list[1])
-        list[2] = cleanname(list[2])
-        
-        local fcount = 1 icount = 1
-        icount, list[1] = countit(list[1])
-        fcount, list[2] = countit(list[2])
-        
-        merge(name, {
-          mode = "smelt",
-          input = {count=icount, item=list[1]},
-          fuel  = {count=fcount, item=list[2]},
-          output= {count= count, item=name}
-        })
+      elseif defop then
+        -- defops have the form
+        -- defop <name>: <outslot-list> = <inslot-list>
+        -- they are used like this
+        -- <name> <out-items> = <in-items>
+        local name = nil
+        local outslots = nil
+        local inslots = nil
+        name, defop = sslice(defop, ":")
+        outslots, defop = sslice(defop, "=")
+        outslots = ssplit(outslots, ",")
+        inslots = ssplit(defop, ",")
+        oplist[name] = {outslots = outslots, inslots = inslots}
       elseif craft then
         local name = strip(split(craft, "=", 1)[1])
         local count = 1
@@ -317,8 +487,11 @@ function _readrecipes()
             if ch == "." then shape[index] = nil
             else
               local num = tonumber(ch)
+              if not list[num] then
+                printf("while decoding %s: invalid index %i", name, num)
+                assert(false)
+              end
               local name = list[num]
-              assert(name)
               shape[index] = num
               if not needed[num] then
                 needed[num] = 1
@@ -357,7 +530,50 @@ function _readrecipes()
           assert(false);
         end
         merge(name, {mode = "alias", targets = targets})
+      elseif haveop(opname) then
+        -- example:
+        -- defop smelt: furnace_output = furnace_input, furnace_fuel
+        -- smelt stone[64] = cobblestone[64], 2 stick
+        local op = oplist[opname] outitems = nil initems = nil
+        local opstr = sstarts(line, opname)
+        assert(opstr)
+        outitems, opstr = sslice(opstr, "=")
+        outitems = ssplit(outitems, ",")
+        initems = ssplit(opstr, ",")
+        -- outitems = {"stone[64]"} initems = {"cobblestone[64]", "2 stick"}
+        
+        -- transform into {count, item, at} form
+        -- also register and clean up
+        local inputlist = {} outputlist = {}
+        for i, item in ipairs(outitems) do
+          register(item)
+          item = cleanname(item)
+          local count = nil
+          count, item = countit(item)
+          outputlist[i] = {count = count, item = item, at = op.outslots[i]}
+        end
+        for i, item in ipairs(initems) do
+          register(item)
+          item = cleanname(item)
+          local count = nil
+          count, item = countit(item)
+          inputlist[i] = {count = count, item = item, at = op.inslots[i]}
+        end
+        
+        -- and done
+        for i, output in ipairs(outitems) do
+          merge(output, {
+            mode = "machine",
+            input  = inputlist,
+            output = outputlist,
+          })
+        end
+      else
+        printf("Syntax error in recipe file: unknown input")
+        printf("recipes.db:%i: %s", i, line)
+        assert(false)
       end
+      i = i + 1
     end
     return res
   end)
@@ -488,6 +704,8 @@ function updatemon(i, t, tf, msg, ...)
     if cmd:len() > 0 then cmd = cmd .. "; " end
     cmd = cmd .. s
   end
+  local fixed_i = i
+  if fixed_i == t + 1 then fixed_i = t end -- make look good
   addcmd("local mon = peripheral.wrap(\"top\")")
   addcmd("term.redirect(mon)")
   addcmd("local w, h = term.getSize()")
@@ -497,7 +715,7 @@ function updatemon(i, t, tf, msg, ...)
   addcmd("term.setCursorPos(1, h-1)")
   addcmd("term.write(\"%s eta %s\")", timefmt(elapsed), timefmt(projected - elapsed))
   addcmd("term.setCursorPos(1, h)")
-  addcmd("term.write(\"[%i / %i]\")", i, t)
+  addcmd("term.write(\"[%i / %i]\")", fixed_i, t)
   addcmd("term.restore()")
   rednet.broadcast("monitor "..cmd)
   rednet.close(dir)
