@@ -173,24 +173,6 @@ function mkfetch(count, item, at)
   end
 end
 
-function concat(a, b, x)
-  local res = {}
-  if type(a) == "string" and a == "element" then
-    a = b
-    b = x
-    table.insert(res, a)
-  else
-    for i, v in ipairs(a) do table.insert(res, v) end
-  end
-  if type(b) == "string" and b == "element" then
-    b = x
-    table.insert(res, b)
-  else
-    for i, v in ipairs(b) do table.insert(res, v) end
-  end
-  return res
-end
-
 function mkmachine(item)
   local info = itemdata[item]
   assert(info and info.mode == "machine")
