@@ -81,6 +81,30 @@ function dup(tbl)
   return res
 end
 
+combine_cache = {}
+function combine(a, b)
+  function make_listcall(list)
+    local res = function()
+      for i,f in ipairs(list) do f() end
+    end
+    combine_cache[res] = list
+    return res
+  end
+  if not b then return a end
+  if not a then return b end
+  local cca = combine_cache[a]
+  local ccb = combine_cache[b]
+  if cca and ccb then
+    return make_listcall(concat(cca, ccb))
+  elseif cca then
+    return make_listcall(concat(cca, "element", b))
+  elseif ccb then
+    return make_listcall(concat("element", a, ccb))
+  else
+    return make_listcall({a, b})
+  end
+end
+
 function download(name, to)
   print(name.." --> "..to)
   data = http.get("http://feephome.no-ip.org/~feep/ftblua/"..name):readAll()
@@ -831,17 +855,26 @@ function pastebin(data)
 end
 
 trace = nil
-function maketracing(name)
-  local fun = _G[name]
-  if not fun then
-    printf("tried to maketracing(%s) but no such fun in global namespace!", name)
-    assert(false)
+function maketracing(fun, name)
+  if type(fun) == "string" then
+    assert(not name)
+    local env = getfenv(2)
+    local f = env[fun]
+    if not f then
+      printf("tried to maketracing(%s) but no such fun in getfenv(2)!", fun)
+      assert(false)
+    end
+    env[fun] = maketracing(f, fun)
+    return
   end
+  assert(name)
   local prev = trace
-  _G[name] = function(...)
+  return function(...)
     trace = {name = name, prev = prev}
+    -- printf("enter %s", name)
     local res = fun(...)
-    trace = trace.prev
+    -- printf("exit  %s", name)
+    trace = prev
     return res
   end
 end

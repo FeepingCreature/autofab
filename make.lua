@@ -38,8 +38,8 @@ end
 function setnum(item, num) items[item] = num end
 
 function addcommand(cmd)
-  printf("add to %i", #items.commands)
-  printbacktrace()
+  -- printf("add to %i", #items.commands)
+  -- printbacktrace()
   table.insert(items.commands, cmd)
 end
 function foritems(fun)
@@ -112,8 +112,7 @@ function resolve(top)
     if not fun then
       fun = f
     else
-      local prevres = fun
-      fun = function() f(); prevres() end
+      fun = combine(f, fun)
     end
   end
   -- resolve crafts
@@ -174,13 +173,22 @@ function mkfetch(count, item, at)
   end
 end
 
-function combine(a, b)
-  if not b then return a end
-  if not a then return b end
-  return function()
-    a()
-    b()
+function concat(a, b, x)
+  local res = {}
+  if type(a) == "string" and a == "element" then
+    a = b
+    b = x
+    table.insert(res, a)
+  else
+    for i, v in ipairs(a) do table.insert(res, v) end
   end
+  if type(b) == "string" and b == "element" then
+    b = x
+    table.insert(res, b)
+  else
+    for i, v in ipairs(b) do table.insert(res, v) end
+  end
+  return res
 end
 
 function mkmachine(item)
@@ -193,8 +201,7 @@ function mkmachine(item)
   for i, outputdata in ipairs(info.output) do
     setnum(outputdata.item, getnum(outputdata.item) + outputdata.count)
   end
-  return function()
-    fun()
+  return combine(fun, function()
     for i, outputdata in ipairs(info.output) do
       addcommand({type = "pickup",
         count = outputdata.count,
@@ -204,7 +211,7 @@ function mkmachine(item)
       })
       addcommand({type = "store" , count = outputdata.count, item = outputdata.item})
     end
-  end
+  end)
 end
 
 function printmissing(tostring, top)
@@ -311,12 +318,10 @@ function mkcraft(rec)
     else fetchs = res end
   end
   setnum(rec.item, getnum(rec.item) + rec.count)
-  local res = function()
-    fetchs()
+  return combine(fetchs, function()
     addcommand({type = "craft", recipe = rec, count = 1})
     addcommand({type = "store", count = rec.count, item = rec.item})
-  end
-  return res
+  end)
 end
 
 function produce(item, num)
@@ -327,20 +332,18 @@ function produce(item, num)
   store(toreturn, goal)
 end
 
-print(produce)
-print(_G.produce)
-print(_G["produce"])
-for k,v in pairs(_G) do if k:find("produce") then print(k) end end
-
-maketracing("produce")
 maketracing("mkfetch")
-maketracing("resolve")
 maketracing("mkcraft")
 maketracing("mkmachine")
+maketracing("produce")
+maketracing("resolve")
+maketracing("store")
 
 if getnum(goal) < toreturn then
   local function prod() produce(goal, toreturn) end
-  xpcall(prod, debug.traceback)
+  prod = maketracing(prod, "prod")
+  -- xpcall(prod, debug.traceback)
+  prod()
   assert(not items.prev) -- make sure items list is closed
 end
 
@@ -569,6 +572,7 @@ end
 
 local yield = yieldevery(10)
 perfcheck("optimize task plan", function()
+  local startsize = #items.commands
   local changed = true -- true = enable opts, false = disable opts
   while changed do
     -- once we find a pass that made changes, restart!
@@ -581,6 +585,7 @@ perfcheck("optimize task plan", function()
         changed = changed or opt_changed
     end end
   end
+  printf("optimized: %i => %i", startsize, #items.commands)
 end)
 
 local planlength = 0
