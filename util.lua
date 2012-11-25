@@ -148,11 +148,16 @@ end
 
 function yieldevery(i)
   local cur = 0
+  local total = 0
   return function()
     cur = cur + 1
     if cur < i then return end
     cur = 0
     sleep(0)
+    total = total + 1
+    if total > 20 then
+      printf("WARN spent more than one second doing yields in yieldevery(%i) - excessive?", i)
+    end
   end
 end
 
@@ -388,6 +393,8 @@ function getnavinfo(loc)
   return res
 end
 
+perflimit = 2
+
 function perfcheck(info, fun)
   local startt = os.clock()
   
@@ -415,7 +422,7 @@ function perfcheck(info, fun)
   _mark = backup
   local endt = os.clock()
   
-  if endt - startt > 1 then
+  if endt - startt > perflimit then
     local mesg = ""
     if not markerinfo then
       mesg = format("%fs: %s", endt - startt, info)
@@ -446,26 +453,30 @@ function optmove(movestr)
   local changed = true
   
   mark("optmove(%s) start", movestr) 
-  local yield = yieldevery(32)
-  while changed do
-    local start = movestr
-    movestr = movestr
-      :gsub("FRRF", "RR"):gsub("FLLF", "LL")
-      :gsub("LR", ""):gsub("RL", "")
-      :gsub("DU", ""):gsub("UD", "")
-      :gsub("LLLL", ""):gsub("RRRR", "")
-      :gsub("LLL", "R"):gsub("RRR", "L")
-      :gsub("FRFRF", "RFR"):gsub("FLFLF", "LFL")
-      :gsub("LDLU", "LL"):gsub("LULD", "LL")
-      :gsub("RDRU", "RR"):gsub("RURD", "RR")
-      :gsub("FDRFRF", "RFDR"):gsub("FDLFLF", "LFDL")
-      :gsub("UL", "LU"):gsub("UR", "RU")
-      :gsub("DL", "LD"):gsub("DR", "RD")
-      :gsub("FRDFDFRFRUFUF", "L"):gsub("FDFLDFLFUFLUF", "R")
-      :gsub("FLDFDFLFLUFUF", "R"):gsub("FDFRDFRFUFRUF", "L")
-    yield()
-    changed = movestr ~= start
-  end
+  perfcheck(format("optimizing %s", movestr), function()
+    local yield = yieldevery(32)
+    while changed do
+      local start = movestr
+      movestr = movestr
+        :gsub("FRRF", "RR"):gsub("FLLF", "LL")
+        :gsub("LR", ""):gsub("RL", "")
+        :gsub("DU", ""):gsub("UD", "")
+        :gsub("LLLL", ""):gsub("RRRR", "")
+        :gsub("LLL", "R"):gsub("RRR", "L")
+        :gsub("FRFRF", "RFR"):gsub("FLFLF", "LFL")
+        :gsub("DLLU", "LL"):gsub("DRRU", "RR")
+        :gsub("ULLD", "LL"):gsub("URRD", "RR")
+        :gsub("FDRFRF", "RFDR"):gsub("FDLFLF", "LFDL")
+        -- rule: down first, then turn
+        :gsub("UL", "LU"):gsub("UR", "RU")
+        :gsub("LD", "DL"):gsub("RD", "DR")
+        :gsub("DLU", "L"):gsub("DRU", "R")
+        :gsub("DFLFLUF", "LFL"):gsub("DFRFRUF", "RFR")
+        :gsub("FDRFRFRUF", "L"):gsub("FDLFLFLUF", "R")
+      yield()
+      changed = movestr ~= start
+    end
+  end)
   mark("optmove(%s) end (res %s)", original, movestr)
   return movestr
 end

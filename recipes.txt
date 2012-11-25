@@ -10,7 +10,7 @@ define steak
 define spider eye
 define coal[64]
 define sugar canes
-define silicon cell
+define silicon cell[64]
 define clay
 define gravel
 define tin ore[64]
@@ -20,9 +20,10 @@ define stick[64]
 define lapis lazuli[64]
 define glowstone dust[64]
 define bauxite ore[64]
-define uranium ore[64]
+define uranium ore 30243[64]
 define iridium ore[64]
 define apatite[64]
+define redstone[64]
 alias wood planks = spruce wood planks[64], oak wood planks[64], fir wood plank[64], jungle wood planks[64]
 alias coppers = copper ingot 13380, copper ingot 20257:64, copper
 alias tins = tin ingot 13381, tin ingot 20257:65, tin
@@ -45,7 +46,7 @@ extract 3 rubber[64] = sticky resin[64]
 
 defop compress: compressor_output = compressor_input[down]
 defop macerate: macerator_output = macerator_input[down]
-compress carbon plate = raw carbon mesh
+compress carbon plate[64] = raw carbon mesh
 
 macerate 2 iron dust[64] = iron ore[64]
 macerate 2 gold dust[64] = gold ore[64]
@@ -100,15 +101,32 @@ craft world anchor = gold ingot,obsidian,diamond,ender pearl
 121
 343
 121
-craft solar panel = glass pane,silicon cell,carbon plate,electronic circuit,generator
+craft solar panel[64] = glass pane,silicon cell,carbon plate,electronic circuit,generator
 111
 232
 454
-craft electronic circuit = copper cable,redstone,refined iron
+craft advanced solar panel = irradiant glass pane, advanced alloy, solar panel, advanced circuit, advanced machine block
+111
+232
+454
+craft irradiant glass pane[64] = reinforced glass, irradiant uranium, glowstone dust
 111
 232
 111
-craft 16 glass pane = glass
+craft reinforced glass[64] = glass, advanced alloy
+121
+111
+121
+craft irradiant uranium[64] = glowstone dust, refined uranium
+.1.
+121
+.1.
+compress refined uranium[64] = uranium ore 30243
+craft electronic circuit[64] = copper cable,redstone,refined iron
+111
+232
+111
+craft 16 glass pane[64] = glass
 111
 111
 ...
@@ -184,7 +202,7 @@ craft 4 stick = wood planks
 1..
 1..
 ...
-craft 6 copper cable = rubber,coppers
+craft 6 copper cable[64] = rubber,coppers
 111
 222
 111
@@ -200,23 +218,24 @@ craft macerator = flint,cobblestone,machine block,electronic circuit
 111
 232
 .4.
-craft machine block = refined iron
+craft machine block[64] = refined iron
 111
 1.1
 111
-craft generator = re-battery,machine block,furnace
+craft generator[64] = re-battery,machine block,furnace
 1..
 2..
 3..
-craft re-battery = tins,redstone,copper cable
+-- must be empty!
+craft re-battery[16] = tins,redstone,copper cable
 .3.
 121
 121
-craft furnace = cobblestone
+craft furnace[64] = cobblestone
 111
 1.1
 111
-craft iron furnace = iron ingot, furnace
+craft iron furnace[64] = iron ingot, furnace
 .1.
 1.1
 121
@@ -350,7 +369,7 @@ craft advanced machine block = advanced alloy, carbon plate, machine block
 .1.
 232
 .1.
-compress advanced alloy = mixed metal ingot[64]
+compress advanced alloy[64] = mixed metal ingot[64]
 craft crafting table = wood planks
 11.
 11.
@@ -424,7 +443,7 @@ craft redstone repeater = redstone torch, redstone, stone
 121
 333
 ...
-craft stone brick[64] = stone
+craft 4 stone brick[64] = stone
 11.
 11.
 ...
@@ -432,6 +451,14 @@ craft 4 stone brick stairs[64] = stone brick
 1..
 11.
 111
+craft induction furnace = coppers, electric furnace, advanced machine block
+111
+121
+131
+craft rotary macerator = refined iron, macerator, advanced machine block
+111
+121
+131
 -- jesus.
 craft quarry = iron gear, redstone, gold gear, diamond gear, diamond pickaxe
 121

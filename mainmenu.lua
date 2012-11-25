@@ -185,22 +185,15 @@ request = function(plan)
   if plan then printheader("  planning")
   else printheader("  requesting") end
   term.write("result item = "); local item = read()
-  local num = split(strip(item), " ", 1)[1]
-  if tonumber(num) then
-    item = split(strip(item), " ", 1)[2]
-  else
-    num = "1"
-  end
   -- term.write("number (1)  = "); local num  = read()
-  local nn = tonumber(num)
   print()
   if plan then
-    frun("make _plan y %i %s", nn, item)
+    frun("make _plan y %s", item)
     wait()
     return
   end
-  printf("  requesting %i '%s' .. ", nn, item)
-  local res = frun("make y %i %s", nn, item)
+  printf("  requesting '%s' .. ", item)
+  local res = frun("make y %s", item)
   frun("navigate home")
   if not mcheck(res) then return end
   if turtle.getItemCount(15) > 0 then

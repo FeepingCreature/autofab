@@ -13,16 +13,30 @@ elseif args[start] == "_paste" then planmode = "paste"; start = start + 1 end
 local skipstore = false
 if args[start] == "y" then skipstore = true; start = start + 1 end
 
-local toreturn = 1
-if tonumber(args[start]) then toreturn = tonumber(args[start]); start = start + 1 end
-
 local goal = nil
 for i=start,# args do
   goal = goal and (goal .. " ")
   goal = (goal or "") .. args[i]
 end
 if not goal then error("expected parameter: goal item") end
-if not knownitem(goal) then error("unknown item: "..goal..didyoumean(goal)) end
+
+local goallist = nil
+if goal:find(",") then
+  goallist = ssplit(goal, ",")
+end
+
+if goallist then
+  for i, item in ipairs(goallist) do
+    local toreturn = nil
+    toreturn, item = countit(item)
+    if not knownitem(item) then error("unknown item: "..item..didyoumean(item)) end
+  end
+else
+  local toreturn = nil
+  local item = goal
+  toreturn, item = countit(item)
+  if not knownitem(item) then error("unknown item: "..item..didyoumean(item)) end
+end
 
 local items = regenInv()
 items.properties = {properties = true, commands = true, prev = true}
@@ -119,12 +133,15 @@ function resolve(top)
   local function resolvecrafts()
     local todo = {}
     forall(function(k, v)
-      if v < 0 and recipe(k, itemdata) then table.insert(todo, k) end
+      if v < 0 and recipe(k, itemdata) then
+        if debugme and not k:find("wood") then printf("craft todo %s", k) end
+        table.insert(todo, k)
+      end
     end)
     local changed = false
     for i,v in ipairs(todo) do changed = true
       while getnum(v) < 0 do
-        if debugme then printf("craft resolve %s (%i)", v, getnum(v)) end
+        if debugme and not v:find("wood") then printf("craft resolve %s (%i)", v, getnum(v)) end
         addfront(mkcraft(recipe(v, itemdata)))
       end
     end
@@ -164,8 +181,8 @@ function store(count, item)
 end
 
 function mkfetch(count, item, at)
-  -- if at then printf("fetch %i %s (%i) to %s", count, item, getnum(item), at)
-  -- else printf("fetch %i %s (%i)", count, item, getnum(item)) end
+  -- if at then printf("fetch %s %s (%s) to %s", tostring(count), item, tostring(getnum(item)), at)
+  -- else printf("fetch %s %s (%s)", tostring(count), item, tostring(getnum(item))) end
   setnum(item, getnum(item) - count) -- mark as claimed!
   return function()
     addcommand({type = "fetch", count = count, item = item})
@@ -189,7 +206,7 @@ function mkmachine(item)
         count = outputdata.count,
         item  = outputdata.item,
         at    = outputdata.at,
-        machinestate = {item = info.input[#info.input].item, load = info.input[#info.input].count}
+        -- machinestate = {item = info.input[#info.input].item, load = info.input[#info.input].count}
       })
       addcommand({type = "store" , count = outputdata.count, item = outputdata.item})
     end
@@ -257,15 +274,20 @@ function mkcraft(rec)
         -- substitution complete - try new plan
         start()
         local res = mkcraft(rec_copy)
-        local temp = getnum(rec_copy.item) -- backup
+        -- local temp = getnum(rec_copy.item) -- backup
         setnum(rec_copy.item, 0) -- make sure the resolve/topisvalid doesn't trip over this
         -- debugme = true
         resolve(true)()
         -- debugme = false
         if (topisvalid()) then
-          setnum(rec_copy.item, temp) -- restore
-          commit()
-          return res
+          -- don't! this will apply the resolve(true)()d changes -
+          -- leave them for later so they bunch up better.
+          -- setnum(rec_copy.item, temp) -- restore
+          -- commit()
+          -- return res
+          -- instead, back off and recraft on the main set
+          rollback()
+          return mkcraft(rec_copy)
         else
           -- printf("substitution/resolution did not produce a valid top set")
           -- printmissing(nil, true)
@@ -306,27 +328,61 @@ function mkcraft(rec)
   end)
 end
 
-function produce(item, num)
-  local f = mkfetch(toreturn, goal)
-  local r = resolve()
-  r()
+function produce(item, num, tolerant)
+  local f = mkfetch(num, item)
+  resolve()()
+  if not isvalid() then
+    if tolerant then return end
+    printf("could not produce %i '%s' (unknown error)", num, item)
+    printmissing(nil)
+    assert(false)
+  end
   f()
-  store(toreturn, goal)
+  store(num, item)
 end
 
-maketracing("mkfetch")
-maketracing("mkcraft")
-maketracing("mkmachine")
-maketracing("produce")
-maketracing("resolve")
-maketracing("store")
+-- maketracing("mkfetch")
+-- maketracing("mkcraft")
+-- maketracing("mkmachine")
+-- maketracing("produce")
+-- maketracing("resolve")
+-- maketracing("store")
 
-if getnum(goal) < toreturn then
-  local function prod() produce(goal, toreturn) end
-  prod = maketracing(prod, "prod")
-  -- xpcall(prod, debug.traceback)
-  prod()
-  assert(not items.prev) -- make sure items list is closed
+if goallist then -- making an item list
+  
+  local fetches = nil
+  for i, item in ipairs(goallist) do
+    local toreturn = nil
+    toreturn, item = countit(item)
+    
+    if getnum(item) < toreturn then
+      -- produce(item, toreturn)
+      local f = mkfetch(toreturn, item)
+      fetches = combine(fetches, function()
+        f()
+        store(toreturn, item)
+      end)
+    end
+  end
+  resolve()()
+  if not isvalid() then
+    printf("could not resolve items (unknown error)")
+    printmissing(nil, true)
+    assert(false)
+  end
+  if fetches then fetches() end
+  assert(not items.prev)
+  
+else
+  
+  local toreturn = nil
+  local item = goal
+  toreturn, item = countit(item)
+
+  if getnum(item) < toreturn then
+    produce(item, toreturn)
+    assert(not items.prev) -- make sure items list is closed
+  end
 end
 
 if not planmode and not isvalid() then
@@ -334,66 +390,79 @@ if not planmode and not isvalid() then
   assert(false)
 end -- otherwise print it later
 
-if skipstore then -- optimizer will remove the redundant store
-  addcommand({type = "fetch", count = toreturn, item = goal})
+if goallist then
+  assert(#goallist <= 15) -- more can't fit in our inv
+  if skipstore then
+    for i, item in ipairs(goallist) do
+      local toreturn = nil
+      toreturn, item = countit(item)
+      
+      -- stuff them in the (now empty) craft chest
+      addcommand({type = "fetch", count = toreturn, item = item})
+      addcommand({type = "deposit", count = toreturn, item = item, at = "craftchest"})
+    end
+    addcommand({type = "suckall"})
+  end
+else
+  local toreturn = nil
+  local item = goal
+  toreturn, item = countit(item)
+  
+  if skipstore then -- optimizer will remove the redundant store
+    addcommand({type = "fetch", count = toreturn, item = item})
+  end
+end
+
+-- now produced via function to reduce copypaste
+function gencraftmergerule(num_inputs)
+  local res = {}
+  res.types = {}
+  -- first set
+  for i=1,num_inputs do table.insert(res.types, "fetch"); table.insert(res.types, "deposit") end
+  table.insert(res.types, "craft"); table.insert(res.types, "store")
+  -- second set
+  for i=1,num_inputs do table.insert(res.types, "fetch"); table.insert(res.types, "deposit") end
+  table.insert(res.types, "craft"); table.insert(res.types, "store")
+  
+  res.subst = function(...)
+    local args = { ... }
+    local halfpoint = num_inputs*2+2
+    assert(#args == halfpoint*2)
+    
+    local c1 = args[num_inputs*2+1]; local c2 = args[num_inputs*2+1 + halfpoint]
+    local s1 = args[num_inputs*2+2]; local s2 = args[num_inputs*2+2 + halfpoint]
+    assert(c1.type == "craft" and c2.type == "craft" and s1.type == "store" and s2.type == "store")
+    if s1.item ~= s2.item or c1.item ~= c2.item or s1.count + s2.count > (itemdata[s1.item].stacksize or -1) then return nil end
+    
+    local res = {}
+    for i=1,num_inputs do
+      local f1 = args[i*2-1]
+      local f2 = args[i*2-1 + halfpoint]; assert(f2.type == "fetch")
+      if f1.item ~= f2.item then return nil end
+      
+      if f1.count + f2.count > (itemdata[f1.item].stacksize or -1) then return nil end
+      
+      local d1 = args[i*2]
+      local d2 = args[i*2 + halfpoint]; assert(d2.type == "deposit")
+      if d1.at ~= d2.at then return nil end
+      
+      table.insert(res, {type = "fetch",   item = f1.item, count = f1.count + f2.count})
+      table.insert(res, {type = "deposit", item = d1.item, count = d1.count + d2.count, at = d1.at})
+    end
+    table.insert(res, {type = "craft", recipe = c1.recipe, count = c1.count + c2.count})
+    table.insert(res, {type = "store", item   = s1.item  , count = s1.count + s2.count})
+    return res
+  end
+  return res
 end
 
 opts = {
-  -- merge two identical crafts
-  { types = {"fetch", "deposit", "craft", "store", "fetch", "deposit", "craft", "store"},
-    subst = function(f1, d1, c1, s1, f2, d2, c2, s2)
-      if f1.item == f2.item and d1.at == d2.at and
-         c1.item == c2.item and
-         f1.count + f2.count <= (itemdata[f1.item].stacksize or -1) and
-         s1.count + s2.count <= (itemdata[s1.item].stacksize or -1)
-      then
-        assert(s1.item == s2.item)
-        return {
-          {type = "fetch",   item = f1.item, count = f1.count + f2.count},
-          {type = "deposit", item = d1.item, count = d1.count + d2.count, at = d1.at},
-          {type = "craft",   recipe=c1.recipe,count= c1.count + c2.count},
-          {type = "store",   item = s1.item, count = s1.count + s2.count}
-        }
-      end
-    end
-  },
-  -- merge two identical two-element crafts
-  { types = {"fetch", "deposit", "fetch", "deposit", "craft", "store", "fetch", "deposit", "fetch", "deposit", "craft", "store"},
-    subst = function(f1a, d1a, f1b, d1b, c1, s1, f2a, d2a, f2b, d2b, c2, s2)
-      if f1a.item == f2a.item and f1b.item == f2b.item and d1a.at == d2a.at and d1b.at == d2b.at and
-         c1.item == c2.item and
-         f1a.count + f2a.count <= (itemdata[f1a.item].stacksize or -1) and
-         f1b.count + f2b.count <= (itemdata[f1a.item].stacksize or -1) and
-         s1.count + s2.count <= (itemdata[s1.item].stacksize or -1)
-      then
-        assert(s1.item == s2.item)
-        return {
-          {type = "fetch",   item = f1a.item, count = f1a.count + f2a.count},
-          {type = "deposit", item = d1a.item, count = d1a.count + d2a.count, at = d1a.at},
-          {type = "fetch",   item = f1b.item, count = f1b.count + f2b.count},
-          {type = "deposit", item = d1b.item, count = d1b.count + d2b.count, at = d1b.at},
-          {type = "craft",   recipe=c1 .recipe,count= c1 .count + c2.count},
-          {type = "store",   item = s1 .item, count = s1 .count + s2.count}
-        }
-      end
-    end
-  },
-  -- this is basically two furnace tasks in a row
-  -- try to interleave them
-  { types = {"pickup", "store", "fetch", "deposit"},
-    subst = function(p, s, f, d)
-      if s.item == f.item then return nil end
-      if (starts(p.at, "furnace_output")) then
-        if (starts(d.at, "furnace_fuel")
-          -- and we can still stick this fuel in guaranteed without overflow
-          and (p.machinestate and p.machinestate.item == f.item and p.machinestate.load + f.count <= itemdata[f.item].stacksize))
-        then
-          p.machinestate.load = p.machinestate.load + f.count
-          return {f, d, p, s}
-        end
-      end
-    end
-  },
+  -- merge identical crafts
+  gencraftmergerule(1),
+  gencraftmergerule(2),
+  gencraftmergerule(3),
+  gencraftmergerule(4),
+  gencraftmergerule(5),
   -- pickup stuff, store it, craft something: the craft and pick/store tasks are independent
   { types = {"pickup", "store", "craft", "store"},
     subst = function(p, s1, c, s2)
@@ -474,20 +543,48 @@ opts = {
   },
   -- do these last so they don't fuck up eventual earlier opts
   { types = {"store", "fetch"},
-    subst = function(a, b)
-      if (a.item == b.item) then
-        if (a.count > b.count) then -- store 4 sticks, fetch 2 sticks
-          return {type = "store", item = a.item, count = a.count - b.count}
+    subst = function(s, f)
+      if (s.item == f.item) then
+        if (s.count > f.count) then -- store 4 sticks, fetch 2 sticks
+          return {type = "store", item = s.item, count = s.count - f.count}
         else -- store 2 sticks, fetch 4 sticks = fetch 2 sticks
-          return {type = "fetch", item = a.item, count = b.count - a.count}
+          return {type = "fetch", item = s.item, count = f.count - s.count}
         end
+      end
+    end
+  },
+  { types = {"fetch", "store"},
+    subst = function(f, s)
+      if (f.item == s.item) then
+        if (f.count > s.count) then -- fetch 4 sticks, store 2 sticks
+          return {type = "fetch", item = f.item, count = f.count - s.count}
+        else -- fetch 2 sticks, store 4 sticks = store 2 sticks
+          return {type = "store", item = f.item, count = s.count - f.count}
+        end
+      end
+    end
+  },
+  -- two unrelated tasks in a row? try to interleave them.
+  { types = {"pickup", "store", "fetch", "deposit"},
+    subst = function(p, s, f, d)
+      function different_devices(at1, at2)
+        local isdevice1 = at1:find("_")
+        local isdevice2 = at2:find("_")
+        if not isdevice1 or not isdevice2 then return false end -- cannot be certain
+        local dev1 = split(at1, "_", 1)[1]
+        local dev2 = split(at2, "_", 1)[1]
+        return dev1 ~= dev2
+      end
+      if (s.item ~= f.item and different_devices(p.at, d.at))
+      then
+        return {f, d, p, s}
       end
     end
   },
   -- if possible, set the machine running as early as possible
   { types = {"craft", "store", "fetch", "deposit"},
     subst = function(c, s, f, d)
-      if (c.recipe.count == s.count and f.count == d.count and
+      if (c.recipe.count * c.count == s.count and f.count == d.count and
           d.at:find("_input") and f.item ~= s.item)
       then
         return {f, d, c, s}
@@ -522,7 +619,7 @@ function apply(stream, opt)
   local res = {}
   while i <= n-m+1 do
     local par = {}
-    for k=i,i+m do table.insert(par, stream[k]) end
+    for k=i,i+m-1 do table.insert(par, stream[k]) end
     local outp = nil
     if not types then -- no type match given
       outp = opt.subst(unpack(par))
@@ -583,11 +680,13 @@ for i, v in ipairs(items.commands) do
     data = data..format("deposit %i '%s' at %s", v.count, v.item, v.at)
   elseif v.type == "pickup" then
     data = data..format("pick up %i '%s' at %s", v.count, v.item, v.at)
-    if v.machinestate then
-      data = data..format("[machine state: %i '%s']", v.machinestate.load, v.machinestate.item)
-    end
+    -- if v.machinestate then
+    --   data = data..format("[machine state: %i '%s']", v.machinestate.load, v.machinestate.item)
+    -- end
   elseif v.type == "store" then
     data = data..format("store %i %s", v.count, v.item)
+  elseif v.type == "suckall" then
+    data = data..format("pick up all items")
   else
     print("unknown type: "..v.type)
     assert(false)
@@ -598,20 +697,29 @@ end
 if planmode then
   local canrun = 0
   local made = 0
+  
+  local toreturn = nil
+  local item = goal
+  toreturn, item = countit(item)
+  
   local function consume()
     if isvalid() then
-      made = made + getnum(goal)
-      setnum(goal, 0)
+      made = made + getnum(item)
+      setnum(item, 0)
     end
   end
   start()
   consume()
-  while isvalid() do
-    -- printf("still valid at pass %i, got %i", canrun, made)
-    -- printf("num pix=%i stix=%i planx=%i", getnum("iron pickaxe"), getnum("sticks"), getnum("wood planks"))
-    canrun = canrun + 1
-    produce(goal, toreturn)
-    consume()
+  if goallist then
+    canrun = 1
+  else
+    while isvalid() do
+      -- printf("still valid at pass %i, got %i", canrun, made)
+      -- printf("num tinx=%i orex=%i dusx=%i", getnum("tin"), getnum("tin ore"), getnum("tin dust"))
+      canrun = canrun + 1
+      produce(item, toreturn, true)
+      consume()
+    end
   end
   rollback()
   assert(not items.prev)
@@ -670,6 +778,13 @@ for i,v in ipairs(items.commands) do
   elseif v.type == "store" then
     update("store %i '%s'", v.count, v.item)
     assert(shell.run("store", "internal", "yes", format("%i", v.count), format("%s", v.item)))
+  elseif v.type == "suckall" then
+    update("grab items")
+    assert(shell.run("navigate", "craftchest"))
+    for i=1,15 do
+      turtle.select(i)
+      turtle.suck()
+    end
   elseif v.type == "craft" then
     update("craft %ix%i '%s'", v.count, v.recipe.count, v.recipe.item)
     assert(shell.run("navigate", "craftchest"))
