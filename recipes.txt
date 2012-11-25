@@ -4,26 +4,28 @@ define seeds
 define gold ore
 define iron ore
 define copper ore
-define string[64]
 define raw beef
 define steak
 define spider eye
-define coal[64]
 define sugar canes
-define silicon cell[64]
 define clay
 define gravel
-define tin ore[64]
 define ink sac
 define stone stairs
+define coal[64]
+define dirt[64]
 define stick[64]
-define lapis lazuli[64]
-define glowstone dust[64]
-define bauxite ore[64]
-define uranium ore 30243[64]
-define iridium ore[64]
+define string[64]
+define tin ore[64]
+define diamond[64]
 define apatite[64]
 define redstone[64]
+define bauxite ore[64]
+define iridium ore[64]
+define silicon cell[64]
+define lapis lazuli[64]
+define glowstone dust[64]
+define uranium ore 30243[64]
 alias wood planks = spruce wood planks[64], oak wood planks[64], fir wood plank[64], jungle wood planks[64]
 alias coppers = copper ingot 13380, copper ingot 20257:64, copper
 alias tins = tin ingot 13381, tin ingot 20257:65, tin
@@ -109,11 +111,11 @@ craft advanced solar panel = irradiant glass pane, advanced alloy, solar panel, 
 111
 232
 454
-craft irradiant glass pane[64] = reinforced glass, irradiant uranium, glowstone dust
+craft 6 irradiant glass pane[64] = reinforced glass, irradiant uranium, glowstone dust
 111
 232
 111
-craft reinforced glass[64] = glass, advanced alloy
+craft 7 reinforced glass[64] = glass, advanced alloy
 121
 111
 121
@@ -244,27 +246,27 @@ craft electric furnace = electronic circuit, redstone, iron furnace
 232
 ...
 -- gears
-craft wood gear = stick
+craft wood gear[64] = stick
 .1.
 1.1
 .1.
-craft stone gear = cobblestone, wood gear
+craft stone gear[64] = cobblestone, wood gear
 .1.
 121
 .1.
-craft iron gear = iron ingot, stone gear
+craft iron gear[64] = iron ingot, stone gear
 .1.
 121
 .1.
-craft tin gear = tins, stone gear
+craft tin gear[64] = tins, stone gear
 .1.
 121
 .1.
-craft gold gear = gold ingot, iron gear
+craft gold gear[64] = gold ingot, iron gear
 .1.
 121
 .1.
-craft diamond gear = diamond, gold gear
+craft diamond gear[64] = diamond, gold gear
 .1.
 121
 .1.
@@ -459,6 +461,10 @@ craft rotary macerator = refined iron, macerator, advanced machine block
 111
 121
 131
+craft eu meter = glowstone dust, copper cable, electronic circuit
+.1.
+232
+2.2
 -- jesus.
 craft quarry = iron gear, redstone, gold gear, diamond gear, diamond pickaxe
 121
