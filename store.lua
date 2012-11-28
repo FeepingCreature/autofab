@@ -34,11 +34,62 @@ for i=start,# args do
   item = item..args[i]
 end
 
-if not knownitem(item) then error("Unknown item: "..item) end
 local startfield = 1
 if starts_high then startfield = 15 end
 local count = turtle.getItemCount(startfield)
-if count == 0 then error("No items found. Please use slot:1. ") end
+if count == 0 then error("No items found. Please use slot:1 [and subsequent]. ") end
+
+if startfield == 1 then
+  turtle.select(1)
+  local item_map = {} -- storing more than one stack
+  local item_list = ssplit(item, ",")
+  assert(#item_list > 0)
+  
+  local have_extras = false
+  
+  local cur_list_entry = 1
+  item_map[1] = item_list[cur_list_entry]
+  cur_list_entry = cur_list_entry + 1
+  for i=2,15 do
+    if turtle.getItemCount(i) > 0 then
+      turtle.select(i)
+      for k=1,i-1 do
+        if turtle.compareTo(k) then
+          assert(item_map[k])
+          item_map[i] = item_map[k]
+        end
+      end
+      if not item_map[i] then
+        if not item_list[cur_list_entry] then
+          error(format("unknown item in slot:%i", i))
+        end
+        item_map[i] = item_list[cur_list_entry]
+        if not knownitem(item_map[i]) then error("Unknown item: "..item_map[i]) end
+        cur_list_entry = cur_list_entry + 1
+      end
+      have_extras = true
+    end
+  end
+  if have_extras then
+    assert(not internal) -- cannot be assured that craftchest is free for this!
+    assert(not totransfer) -- todo
+    assert(shell.run("navigate", "craftchest")) -- use as temporary
+    for i=2,15 do
+      turtle.select(i)
+      turtle.drop()
+    end
+    local index = 1
+    while true do
+      assert(shell.run("store", item_map[index])) -- chests are FIFO
+      index = index + 1
+      assert(shell.run("navigate", "craftchest"))
+      turtle.select(1)
+      if not turtle.suck() then return end
+    end
+  end
+end
+
+if not knownitem(item) then error("Unknown item: "..item) end
 
 local stacksize = turtle.getItemSpace(startfield) + count
 

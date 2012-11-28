@@ -180,13 +180,13 @@ function store(count, item)
   addcommand({type = "store", count = count, item = item})
 end
 
-function mkfetch(count, item, at)
+function mkfetch(count, item, at, checkempty)
   -- if at then printf("fetch %s %s (%s) to %s", tostring(count), item, tostring(getnum(item)), at)
   -- else printf("fetch %s %s (%s)", tostring(count), item, tostring(getnum(item))) end
   setnum(item, getnum(item) - count) -- mark as claimed!
   return function()
     addcommand({type = "fetch", count = count, item = item})
-    if at then addcommand({type = "deposit", count = count, item = item, at = at}) end
+    if at then addcommand({type = "deposit", count = count, item = item, at = at, checkempty = checkempty}) end
   end
 end
 
@@ -314,12 +314,9 @@ function mkcraft(rec)
   for i,k in ipairs(rec.shape.list) do
     -- printf("%i rec? %s to %s", i, rec.item, k)
     local v = rec.needed[i]; assert(v)
-    local res = mkfetch(v, k, "craftchest")
+    local res = mkfetch(v, k, "craftchest", not fetchs)
     if nil == res then return nil end
-    if fetchs then
-      local prev_fetchs = fetchs
-      fetchs = function() prev_fetchs(); res() end
-    else fetchs = res end
+    fetchs = combine(fetchs, res)
   end
   setnum(rec.item, getnum(rec.item) + rec.count)
   return combine(fetchs, function()
@@ -447,7 +444,7 @@ function gencraftmergerule(num_inputs)
       if d1.at ~= d2.at then return nil end
       
       table.insert(res, {type = "fetch",   item = f1.item, count = f1.count + f2.count})
-      table.insert(res, {type = "deposit", item = d1.item, count = d1.count + d2.count, at = d1.at})
+      table.insert(res, {type = "deposit", item = d1.item, count = d1.count + d2.count, at = d1.at, checkempty = f1.checkempty})
     end
     table.insert(res, {type = "craft", recipe = c1.recipe, count = c1.count + c2.count})
     table.insert(res, {type = "store", item   = s1.item  , count = s1.count + s2.count})
@@ -510,7 +507,7 @@ opts = {
     subst = function(d1, d2)
       if (d1.item == d2.item and d1.at == d2.at and
           d1.count + d2.count <= (itemdata[d1.item].stacksize or -1)) then
-        return {type = "deposit", at = d1.at, item = d1.item, count = d1.count + d2.count}
+        return {type = "deposit", at = d1.at, item = d1.item, count = d1.count + d2.count, checkempty = d1.checkempty}
       end
     end
   },
@@ -747,11 +744,24 @@ for i,v in ipairs(items.commands) do
     local up = ends(at, "[up]")
     if down then at = strip(down) end
     if up   then at = strip(up)   end
+    
+    local dfun = turtle.drop
+    if up   then dfun = turtle.dropUp end
+    if down then dfun = turtle.dropDown end
+    
     assert(shell.run("navigate", at))
+    if v.checkempty then
+      local sfun = turtle.suck
+      if up then sfun = turtle.suckUp end
+      if down then sfun = turtle.suckDown end
+      turtle.select(1)
+      if sfun() then
+        dfun() -- oops
+        error(format("cannot deposit: %s was not empty!", v.at))
+      end
+    end
     turtle.select(15)
-    if up then assert(turtle.dropUp())
-    elseif down then assert(turtle.dropDown())
-    else assert(turtle.drop()) end
+    assert(dfun())
   elseif v.type == "fetch" then
     update("fetch %i '%s'", v.count, v.item)
     printf("> retrieve %i %s", v.count, v.item)
@@ -803,7 +813,7 @@ for i,v in ipairs(items.commands) do
     if not turtle.craft() then
       turtle.select(16)
       turtle.suck()
-      error(format("could not craft %s: invalid recipe? ", goal))
+      error(format("could not craft %s in %s: invalid recipe? ", rec.item, goal))
     end
     turtle.select(16)
     -- turtle.transferTo(1, rec.count * v.count)

@@ -161,7 +161,7 @@ function yieldevery(i)
   end
 end
 
-local fileyield = yieldevery(16)
+local fileyield = yieldevery(128)
 
 function withfile(fname, mode)
   return function(fun)
@@ -352,7 +352,7 @@ function rld(str)
   local rep = nil
   function flush() if rep then
     rep = rep - 1 -- one is already written
-    assert(res:len())
+    assert(res:len() > 0)
     for k=1,rep do
       res = res..res:sub(-1, -1)
     end
@@ -663,17 +663,17 @@ function _readrecipes()
         -- also register and clean up
         local inputlist = {} outputlist = {}
         for i, item in ipairs(outitems) do
-          register(item)
-          item = cleanname(item)
           local count = nil
           count, item = countit(item)
+          register(item)
+          item = cleanname(item)
           outputlist[i] = {count = count, item = item, at = op.outslots[i]}
         end
         for i, item in ipairs(initems) do
-          register(item)
-          item = cleanname(item)
           local count = nil
           count, item = countit(item)
+          register(item)
+          item = cleanname(item)
           inputlist[i] = {count = count, item = item, at = op.inslots[i]}
         end
         
@@ -876,8 +876,8 @@ function pastebin(data)
   )
   local res = post:readAll()
   if not starts(res, "SUCCESS:") then
-    print("unexpected pastebin result")
     print(res)
+    print("unexpected pastebin result; wanted \"SUCCESS\"")
     assert(false)
   end
   return "http://pastebin.ca/"..starts(res, "SUCCESS:")
