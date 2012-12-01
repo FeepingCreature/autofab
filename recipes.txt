@@ -37,12 +37,9 @@ alias bronzes = bronze ingot 13379, bronze
 alias diamonds = diamond, industrial diamond
 defop smelt: efurnace_output = efurnace_input[down]
 smelt stone[64] = cobblestone[64]
--- smelt iron ingot[64] = iron ore[64]
 smelt iron ingot[64] = iron dust[64]
 smelt refined iron[64] = iron ingot
--- smelt tin ingot 13381[64] = tin ore[64]
 smelt tin ingot 13381[64] = tin dust[64]
--- smelt copper ingot 13380[64] = copper ore[64]
 smelt copper[64] = copper dust[64]
 smelt glass[64] = sand[64]
 smelt gold ingot[64] = gold dust
@@ -54,6 +51,8 @@ extract 3 rubber[64] = sticky resin[64]
 defop compress: compressor_output = compressor_input[down]
 defop macerate: macerator_output = macerator_input[down]
 compress carbon plate[64] = raw carbon mesh
+compress iridium ingot[64] = iridium ore
+compress glowstone[64] = 4 glowstone dust
 
 macerate 2 iron dust[64] = iron ore[64]
 macerate 2 gold dust[64] = gold ore[64]
@@ -176,7 +175,7 @@ craft 12 iron fence = refined iron
 111
 111
 ...
-craft 16 iron bars = iron ingot
+craft 16 iron bars[64] = iron ingot
 111
 111
 ...
@@ -534,12 +533,93 @@ craft dynamite-o-mote = copper cable, tins, lapis lazuli, frequency transmitter
 .1.
 232
 .4.
+craft lv-transformer = traditional wood planks, copper cable, coppers
+121
+333
+121
 -- jesus.
 craft quarry = iron gear, redstone, gold gear, diamond gear, diamond pickaxe
 121
 313
 454
-craft mfe = 2xins gold cable, energy crystal, machine block
+-- retrieve separately
+craft mfe = 2xins gold cable, machine block, energy crystal, energy crystal, energy crystal, energy crystal
+131
+425
+161
+craft 4 glass fibre cable = glass, redstone, diamond
+111
+232
+111
+-- fucking gregtech with its grammarfuckery
+craft matterfabricator = energyflow circuit, teleporter, highly advanced machineblock, lapotronic energyorb
+121
+343
+121
+craft 4 energyflow circuit = advanced circuit, lapotron crystal, iridium plate
 121
 232
 121
+craft lapotron crystal[1] = lapis lazuli, electronic circuit, energy crystal
+121
+131
+121
+craft iridium plate = iridium ingot, advanced alloy, diamonds
+121
+232
+121
+craft teleporter = advanced circuit, frequency transmitter, glass fibre cable, advanced machine block, diamonds
+121
+343
+151
+craft highly advanced machineblock = chrome ingot, titanium ingot, advanced machine block
+121
+232
+121
+craft lapotronic energyorb = lapotron crystal, iridium plate
+111
+121
+111
+craft wrathlamp = dark iron ingot, silver ingot, glass pane, wrath igniter
+121
+343
+121
+craft wrath igniter = diamond shard, nether brick
+1..
+.2.
+...
+craft mining drill = steel ingot, electronic circuit, re-battery
+.1.
+121
+131
+craft diamond drill = diamond, mining drill
+.1.
+121
+...
+craft 4 blast furnace brick[64] = soul sand, nether brick, magma cream
+121
+232
+121
+craft magma cream[64] = blaze powder, slimeball
+12.
+...
+...
+macerate 5 blaze powder[64] = blaze rod
+craft singularity compressor = obsidian, compressor, advanced machine block
+111
+121
+131
+craft enchantment table = book, diamond, obsidian
+.1.
+232
+333
+craft bookshelf = book, wood planks
+222
+111
+222
+craft hopper = iron ingot, chest, stone gear
+121
+131
+.1.
+defop roll: mmm_output = mmm_input[down], mmm_input[down], mmm_input[down]
+roll[power down] 2 mixed metal ingot[64] = 3 refined iron, 3 bronze ingot 13379, 3 tin ingot 13381

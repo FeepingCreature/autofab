@@ -117,17 +117,31 @@ local itemdata = readrecipes()
 
 debugme = false
 
+local yield = yieldeverysec(1)
+
 function resolve(top)
+  yield()
   local forall = foritems
   if top then forall = fortopitems end
-  local fun = nil
-  local function addfront(f)
-    assert(f)
-    if not fun then
-      fun = f
-    else
-      fun = combine(f, fun)
+  local funforward = nil
+  local funbackward = nil
+  local reapplied_items = {}
+  local function reapply()
+    for k, v in ipairs(reapplied_items) do
+      setnum(v.k, getnum(v.k) + v.v)
     end
+  end
+  local function addfront()
+    if not funbackward then funbackward = funforward
+    else funbackward = combine(funforward, funbackward) end
+    funforward = nil
+    fortopitems(function(k, v)
+    end)
+  end
+  local function add(f)
+    assert(f)
+    if not funforward then funforward = f
+    else funforward = combine(funforward, f) end
   end
   -- resolve crafts
   local function resolvecrafts()
@@ -142,9 +156,18 @@ function resolve(top)
     for i,v in ipairs(todo) do changed = true
       while getnum(v) < 0 do
         if debugme and not v:find("wood") then printf("craft resolve %s (%i)", v, getnum(v)) end
-        addfront(mkcraft(recipe(v, itemdata)))
+        add(mkcraft(recipe(v, itemdata)))
       end
     end
+    -- do here!
+    for i,v in ipairs(todo) do
+      if getnum(v) > 0 then
+        -- printf("craft: %s has %i", v, getnum(v))
+        table.insert(reapplied_items, {k=v, v=getnum(v)})
+        setnum(v, 0)
+      end
+    end
+    addfront()
     return changed
   end
   --resolve generic machine ops
@@ -160,9 +183,18 @@ function resolve(top)
     for i,v in ipairs(todo) do changed = true
       while getnum(v) < 0 do
         if debugme then printf("machine resolve %s (%i)", v, getnum(v)) end
-        addfront(mkmachine(v))
+        add(mkmachine(v))
       end
     end
+    -- do here!
+    for i,v in ipairs(todo) do
+      if getnum(v) > 0 then
+        -- printf("machina: %s has %i", v, getnum(v))
+        table.insert(reapplied_items, {k=v, v=getnum(v)})
+        setnum(v, 0)
+      end
+    end
+    addfront()
     return changed
   end
   local running = true
@@ -171,6 +203,8 @@ function resolve(top)
     while resolvecrafts() do running = true end
     while resolvemachines() do running = true end
   end
+  reapply()
+  local fun = funbackward
   if not fun then fun = function() end end
   return fun
 end
@@ -206,6 +240,7 @@ function mkmachine(item)
         count = outputdata.count,
         item  = outputdata.item,
         at    = outputdata.at,
+        param = info.param,
         -- machinestate = {item = info.input[#info.input].item, load = info.input[#info.input].count}
       })
       addcommand({type = "store" , count = outputdata.count, item = outputdata.item})
@@ -453,6 +488,14 @@ function gencraftmergerule(num_inputs)
   return res
 end
 
+function commajoin(a, b)
+  if not a and not b then return nil end
+  if a and not b then return a end
+  if b and not a then return b end
+  if a == b then return a end
+  return a .. "," .. b
+end
+
 opts = {
   -- merge identical crafts
   gencraftmergerule(1),
@@ -488,7 +531,7 @@ opts = {
         end
         assert(p1.item == p2.item)
         return {
-          {type = "pickup", item = p1.item, count = p1.count + p2.count, at = p1.at},
+          {type = "pickup", item = p1.item, count = p1.count + p2.count, at = p1.at, param = commajoin(p1.param, p2.param)},
           {type = "store", item = s1.item, count = s1.count + s2.count}}
       end
     end
@@ -532,7 +575,7 @@ opts = {
         return {
           {type = "fetch",   item = f1.item, count = f1.count + f2.count},
           {type = "deposit", item = d1.item, count = d1.count + d2.count, at = d1.at},
-          {type = "pickup",  item = p1.item, count = p1.count + p2.count, at = p1.at},
+          {type = "pickup",  item = p1.item, count = p1.count + p2.count, at = p1.at, param = commajoin(p1.param, p2.param)},
           {type = "store",   item = s1.item, count = s1.count + s2.count}
         }
       end
@@ -646,7 +689,6 @@ function apply(stream, opt)
   return res, changed
 end
 
-local yield = yieldevery(10)
 perfcheck("optimize task plan", function()
   local startsize = #items.commands
   local changed = true -- true = enable opts, false = disable opts
@@ -676,7 +718,7 @@ for i, v in ipairs(items.commands) do
   elseif v.type == "deposit" then
     data = data..format("deposit %i '%s' at %s", v.count, v.item, v.at)
   elseif v.type == "pickup" then
-    data = data..format("pick up %i '%s' at %s", v.count, v.item, v.at)
+    data = data..format("pick up %i '%s' at %s %s", v.count, v.item, v.at, v.param or "")
     -- if v.machinestate then
     --   data = data..format("[machine state: %i '%s']", v.machinestate.load, v.machinestate.item)
     -- end
@@ -768,7 +810,7 @@ for i,v in ipairs(items.commands) do
     assert(shell.run("retrieve", format("%i", v.count), format("%s", v.item)))
   elseif v.type == "pickup" then
     local at = v.at
-    update("pick up %i '%s' at %s", v.count, v.item, at)
+    update("pick up %i '%s' at %s %s", v.count, v.item, at, v.param or "")
     local down = ends(at, "[down]")
     local up = ends(at, "[up]")
     local suckfn = turtle.suck dropfn = turtle.drop
@@ -777,10 +819,12 @@ for i,v in ipairs(items.commands) do
     assert(shell.run("navigate", at))
     turtle.select(15)
     local start = turtle.getItemCount(15)
+    if (v.param or ""):find("power down") then redstone.setOutput("bottom", true) end
     while turtle.getItemCount(15) - start < v.count do
       suckfn()
       sleep(0.2)
     end
+    if (v.param or ""):find("power down") then redstone.setOutput("bottom", false) end
     local uppicked = turtle.getItemCount(15) - start
     if uppicked > v.count then
       assert(dropfn(uppicked - v.count)) -- make sure we don't have too much

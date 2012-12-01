@@ -107,7 +107,7 @@ end
 function countchests()
   local res = 0
   while true do
-    local f = io.open(format("chest%i.db", res + 1))
+    local f = io.open(makechestfilename(res+1))
     if not f then return res end
     f:close()
     res = res + 1

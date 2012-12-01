@@ -13,38 +13,14 @@ function cls()
   term.clear()
   term.setCursorPos(1,1)
 end
+
 function readnum(test)
-  local blinktime = 0.2
-  local blink = os.startTimer(blinktime)
-  local blinkon = false
-  local x, y = term.getCursorPos()
-  local res = " "
-  while true do
-    local event, param = os.pullEvent()
-    term.setCursorPos(x, y)
-    if event == "timer" and param == blink then
-      if blinkon then
-        blinkon = false
-        term.write("_")
-      else
-        blinkon = true
-        term.write(res)
-      end
-      blink = os.startTimer(blinktime)
-    elseif event == "char" then
-      local num = tonumber(param)
-      if num and test(num) then
-        res = param
-        blink = nil
-        term.write(res)
-      end
-    elseif event == "key" then
-      if res and (param == 28 or param == 156) then
-        return tonumber(res)
-      end
-    end
-  end
+  return readch(nil, function(param)
+    local num = tonumber(param)
+    if num and test(num) then return num end
+  end)
 end
+
 function wait(msg)
   msg = msg or ""
   print(msg.."Press any key to continue.")
@@ -71,8 +47,12 @@ upgrade = function()
   if not mcheck(frun("update")) then return end
 end
 
-shutdown = function()
-  os.shutdown()
+-- shutdown = function()
+--   os.shutdown()
+-- end
+
+addchest = function()
+  mcheck(frun("makechest"))
 end
 
 list = function()
@@ -248,7 +228,7 @@ mainmenu["store"   ] = store    ; mainmenu[2] = "store"
 mainmenu["request" ] = request  ; mainmenu[3] = "request"
 mainmenu["plan"    ] = plan     ; mainmenu[4] = "plan"
 mainmenu["upgrade" ] = upgrade  ; mainmenu[5] = "upgrade"
-mainmenu["shutdown"] = shutdown ; mainmenu[6] = "shutdown"
+mainmenu["add chest"]= addchest ; mainmenu[6] = "add chest"
 mainmenu["validate"] = validate ; mainmenu[7] = "validate"
 mainmenu["exit to shell"]=function() running = false end
 mainmenu[8] = "exit to shell"

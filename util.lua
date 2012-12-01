@@ -26,6 +26,10 @@ function split(self, sep, max)
   return rec
 end
 
+function makechestfilename(num)
+  return string.format("chests/chest%i.db", num)
+end
+
 function join(list, sep)
   sep = sep or ""
   local res = ""
@@ -64,6 +68,12 @@ end
 
 function sslice(text, pattern)
   local res = fmap(split(text, pattern, 1), strip)
+  return res[1], res[2]
+end
+
+function sslice2(text, pattern)
+  local res = fmap(split(text, pattern, 1), strip)
+  if not res[2] then return nil end
   return res[1], res[2]
 end
 
@@ -146,22 +156,17 @@ function goback()
   shell.run("navigate", "home")
 end
 
-function yieldevery(i)
-  local cur = 0
-  local total = 0
+function yieldeverysec(t)
+  local last = os.clock()
   return function()
-    cur = cur + 1
-    if cur < i then return end
-    cur = 0
+    local now = os.clock()
+    if now - last < t then return end
+    last = now
     sleep(0)
-    total = total + 1
-    if total > 20 then
-      printf("WARN spent more than one second doing yields in yieldevery(%i) - excessive?", i)
-    end
   end
 end
 
-local fileyield = yieldevery(128)
+local fileyield = yieldeverysec(2)
 
 function withfile(fname, mode)
   return function(fun)
@@ -199,7 +204,7 @@ function chest(i)
   return {
     chestid = i,
     transferred = 0,
-    filename = function(self) return string.format("chest%i.db", self.chestid) end,
+    filename = function(self) return makechestfilename(self.chestid) end,
     exists = function(self)
       fileyield()
       local f = io.open(self:filename(), "r")
@@ -290,8 +295,7 @@ function chest(i)
       end
       f:close()
       if not passive then
-        
-        sleep(0) -- yield
+        fileyield()
         f = io.open(self:filename(), "w")
         f:write(strip(newdata).."\n")
         f:close()
@@ -387,7 +391,7 @@ function gotnavinfo(loc)
 end
 
 function getnavinfo(loc)
-  if not loc then return "" end
+  if not loc or loc == "origin" then return "" end
   local res = gotnavinfo(loc)
   if not res then error("Unknown location: '"..loc.."'") end
   return res
@@ -454,7 +458,7 @@ function optmove(movestr)
   
   mark("optmove(%s) start", movestr) 
   perfcheck(format("optimizing %s", movestr), function()
-    local yield = yieldevery(32)
+    local yield = yieldeverysec(1)
     while changed do
       local start = movestr
       movestr = movestr
@@ -473,6 +477,7 @@ function optmove(movestr)
         :gsub("DLU", "L"):gsub("DRU", "R")
         :gsub("DFLFLUF", "LFL"):gsub("DFRFRUF", "RFR")
         :gsub("FDRFRFRUF", "L"):gsub("FDLFLFLUF", "R")
+        :gsub("FDFDRFFRFFRUFUF", "L"):gsub("FDFDLFFLFFLUFUF", "R")
       yield()
       changed = movestr ~= start
     end
@@ -556,7 +561,11 @@ function _readrecipes()
       local craft = starts(line, "craft ");
       local alias = starts(line, "alias ");
       local defop = starts(line, "defop ");
-      local opname = strip(split(line, " ", 1)[1])
+      local opname = sslice(line, " ")
+      local parver = sslice2(line, "[")
+      if parver and parver:len() < opname:len() then
+        opname = parver
+      end
       
       if not line or line:len() == 0 then
       elseif process then
@@ -567,7 +576,7 @@ function _readrecipes()
         -- defops have the form
         -- defop <name>: <outslot-list> = <inslot-list>
         -- they are used like this
-        -- <name> <out-items> = <in-items>
+        -- <name>[args] <out-items> = <in-items>
         local name = nil
         local outslots = nil
         local inslots = nil
@@ -650,10 +659,18 @@ function _readrecipes()
       elseif haveop(opname) then
         -- example:
         -- defop smelt: furnace_output = furnace_input, furnace_fuel
-        -- smelt stone[64] = cobblestone[64], 2 stick
-        local op = oplist[opname] outitems = nil initems = nil
+        -- smelt[power down] stone[64] = cobblestone[64], 2 stick
+        local op = oplist[opname]
+        local outitems = nil
+        local initems = nil
         local opstr = sstarts(line, opname)
         assert(opstr)
+        
+        local param = nil
+        if sstarts(opstr, "[") then
+          param, opstr = sslice(sstarts(opstr, "["), "]")
+        end
+        
         outitems, opstr = sslice(opstr, "=")
         outitems = ssplit(outitems, ",")
         initems = ssplit(opstr, ",")
@@ -681,6 +698,7 @@ function _readrecipes()
         for i, output in ipairs(outitems) do
           merge(output, {
             mode = "machine",
+            param = param,
             input  = inputlist,
             output = outputlist,
           })
@@ -915,4 +933,95 @@ function printbacktrace()
     printf("%i: %s", i, cur.name)
     cur = cur.prev
   end
+end
+
+  ---- Input ----
+function readch(returnvalue, test, direct)
+  local blinktime = 0.2
+  local blink = os.startTimer(blinktime)
+  local blinkon = false
+  local x, y = term.getCursorPos()
+  local res = " "
+  while true do
+    local event, param = os.pullEvent()
+    term.setCursorPos(x, y)
+    if event == "timer" and param == blink then
+      if blinkon then
+        blinkon = false
+        term.write("_")
+      else
+        blinkon = true
+        term.write(res)
+      end
+      blink = os.startTimer(blinktime)
+    elseif event == "char" then
+      local t = test(param)
+      if nil ~= t then
+        if nil ~= returnvalue then return t end
+        res = t
+        blink = nil
+        term.write(param)
+      end
+    elseif event == "key" then
+      -- return and numpad return
+      if (param == 28 or param == 156) then
+        if nil ~= returnvalue then return returnvalue end
+        if res then return res end
+      end
+      if direct then
+        local otherwise = direct(param)
+        if otherwise then return otherwise end
+      end
+    end
+  end
+end
+
+  ---- Movement ----
+function checkfuel()
+  messaged = false
+  while 0 == turtle.getFuelLevel() do
+    turtle.select(16)
+    turtle.refuel(1)
+    if 0 == turtle.getFuelLevel() then
+      if not messaged then
+        messaged = true
+        print("Please refuel")
+      end
+      sleep(1)
+    end
+  end
+end
+
+local digout = false
+function checkfwd () if digout then turtle.dig()     end end
+function checkup  () if digout then turtle.digUp()   end end
+function checkdown() if digout then turtle.digDown() end end
+
+local movestr = ""
+function add(s) movestr = movestr..s end
+function _fwd  () while not turtle.forward() do checkfuel(); checkfwd() end end
+function _up   () while not turtle.up     () do checkfuel(); checkup() end end
+function _down () while not turtle.down   () do checkfuel(); checkdown() end end
+function _left () turtle.turnLeft () end
+function _right() turtle.turnRight() end
+function fwd  () add("F") end
+function up   () add("U") end
+function down () add("D") end
+function left () add("L") end
+function right() add("R") end
+function move(s) add(s) end
+function commit()
+  movestr = optmove(movestr)
+  --print("commit: "..movestr)
+  --assert(false)
+  for i=1,movestr:len() do
+    ch = movestr:sub(i,i)
+    if     (ch == "F") then _fwd  ()
+    elseif (ch == "U") then _up   ()
+    elseif (ch == "D") then _down ()
+    elseif (ch == "L") then _left ()
+    elseif (ch == "R") then _right()
+    else error("wat :"..ch) end
+  end
+  movestr = ""
 end
