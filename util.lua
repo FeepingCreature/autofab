@@ -295,9 +295,10 @@ function chest(i)
       end
       f:close()
       if not passive then
-        fileyield()
+        local mydata = strip(newdata).."\n"
+        sleep(0) -- yield
         f = io.open(self:filename(), "w")
-        f:write(strip(newdata).."\n")
+        f:write(mydata)
         f:close()
         
         self:close()
@@ -445,6 +446,7 @@ function perfcheck(info, fun)
     
     data = data .. mesg
     
+    sleep(0) -- yield
     f = io.open("warnings.txt", "w")
     f:write(data)
     f:close()
@@ -529,6 +531,7 @@ function _readrecipes()
   return withfile("recipes.db","r")(function(f)
     local res = {}
     local function register(name)
+      if name == "nil" then return end
       local item = {}
       local test = tonumber(split(split(name, "[", 1)[2], "]", 1)[1])
       name = cleanname(name)
@@ -545,8 +548,14 @@ function _readrecipes()
       
       register(id)
       id = cleanname(id)
-      assert(res[id] and nil == res[id].mode)
-      for k, v in pairs(thing) do res[id][k] = v end
+      assert(res[id])
+      if res[id].mode then
+        -- already provided, don't merge (side effect?)
+        -- TODO multiproviders (generalize aliases?)
+        -- printf("skip merging %s from %s", id, thing.mode)
+      else
+        for k, v in pairs(thing) do res[id][k] = v end
+      end
     end
     
     oplist = {}
@@ -678,31 +687,36 @@ function _readrecipes()
         
         -- transform into {count, item, at} form
         -- also register and clean up
-        local inputlist = {} outputlist = {}
+        local inputlist = {}
+        local outputlist = {}
         for i, item in ipairs(outitems) do
           local count = nil
           count, item = countit(item)
           register(item)
           item = cleanname(item)
-          outputlist[i] = {count = count, item = item, at = op.outslots[i]}
+          if item ~= "nil" then
+            table.insert(outputlist, {count = count, item = item, at = op.outslots[i]})
+          end
         end
         for i, item in ipairs(initems) do
           local count = nil
           count, item = countit(item)
           register(item)
           item = cleanname(item)
-          inputlist[i] = {count = count, item = item, at = op.inslots[i]}
+          if item ~= "nil" then
+            table.insert(inputlist, {count = count, item = item, at = op.inslots[i]})
+          end
         end
         
         -- and done
-        for i, output in ipairs(outitems) do
+        for i, output in ipairs(outitems) do if output ~= "nil" then
           merge(output, {
             mode = "machine",
             param = param,
             input  = inputlist,
             output = outputlist,
           })
-        end
+        end end
       else
         printf("Syntax error in recipe file: unknown input")
         printf("recipes.db:%i: %s", i, line)

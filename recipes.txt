@@ -21,13 +21,17 @@ define tin ore[64]
 define diamond[64]
 define apatite[64]
 define redstone[64]
+define ruby dust[64]
 define bauxite ore[64]
+define sulfur dust[64]
+define gold nugget[64]
 define iridium ore[64]
 define monazit ore[64]
 define silicon cell[64]
 define lapis lazuli[64]
 define glowstone dust[64]
 define uranium ore 30243[64]
+define compressed air cell[64]
 alias wood planks = spruce wood planks[64], oak wood planks[64], fir wood plank[64], jungle wood planks[64], redwood planks[64]
 -- without the broken 2x2 woods
 alias traditional wood planks = spruce wood planks[64], oak wood planks[64], fir wood plank[64], jungle wood planks[64]
@@ -43,6 +47,8 @@ smelt tin ingot 13381[64] = tin dust[64]
 smelt copper[64] = copper dust[64]
 smelt glass[64] = sand[64]
 smelt gold ingot[64] = gold dust
+smelt titanium ingot[64] = titanium dust
+smelt chrome ingot[64] = chrome dust
 
 -- smelt rubber[64] = sticky resin[64]
 defop extract: extractor_output = extractor_input[down]
@@ -60,6 +66,7 @@ macerate 2 tin dust[64] = tin ore[64]
 macerate 2 copper dust[64] = copper ore[64]
 macerate sand[64] = cobblestone[64]
 macerate flint = gravel
+macerate netherrack dust[64] = netherrack
 
 craft raw carbon mesh[64] = raw carbon fibre
 11.
@@ -103,6 +110,10 @@ craft 4 redwood planks[64] = redwood log 1315[64]
 ...
 ...
 craft diamond pickaxe = stick, diamond
+222
+.1.
+.1.
+craft gold pickaxe = stick, gold ingot
 222
 .1.
 .1.
@@ -362,7 +373,7 @@ craft ic2 wrench = bronzes
 1.1
 111
 .1.
-craft 4 bronze ingot 13379 = coppers, tins
+craft 4 bronze ingot 13379[64] = coppers, tins
 11.
 12.
 ...
@@ -382,7 +393,7 @@ craft industrial centrifuge = refined iron, advanced circuit, advanced machine b
 121
 343
 121
-craft advanced circuit = redstone, glowstone, lapis lazuli, electronic circuit
+craft advanced circuit[64] = redstone, glowstone dust, lapis lazuli, electronic circuit
 121
 343
 121
@@ -556,10 +567,11 @@ craft matterfabricator = energyflow circuit, teleporter, highly advanced machine
 121
 343
 121
-craft 4 energyflow circuit = advanced circuit, lapotron crystal, iridium plate
+-- todo verify 16
+craft 4 energyflow circuit[16] = advanced circuit, lapotron crystal, lapotron crystal, lapotron crystal, lapotron crystal, iridium plate
 121
-232
-121
+364
+151
 craft lapotron crystal[1] = lapis lazuli, electronic circuit, energy crystal
 121
 131
@@ -576,10 +588,10 @@ craft highly advanced machineblock = chrome ingot, titanium ingot, advanced mach
 121
 232
 121
-craft lapotronic energyorb = lapotron crystal, iridium plate
-111
-121
-111
+craft lapotronic energyorb = lapotron crystal, lapotron crystal, lapotron crystal, lapotron crystal, iridium plate, lapotron crystal, lapotron crystal, lapotron crystal, lapotron crystal
+123
+456
+789
 craft wrathlamp = dark iron ingot, silver ingot, glass pane, wrath igniter
 121
 343
@@ -621,5 +633,37 @@ craft hopper = iron ingot, chest, stone gear
 121
 131
 .1.
+-- craft 16 metal post = iron ingot
+-- 111
+-- .1.
+-- 111
 defop roll: mmm_output = mmm_input[down], mmm_input[down], mmm_input[down]
 roll[power down] 2 mixed metal ingot[64] = 3 refined iron, 3 bronze ingot 13379, 3 tin ingot 13381
+
+macerate 4 bauxite dust[64] = bauxite ore
+
+defop centrifuge: centr_side1, centr_side2, centr_side3, centr_side4 = centr_top[down], centr_bot[up]
+centrifuge 16 aluminium dust, titanium dust, 10 hydrogen cell, 6 compressed air cell = 24 bauxite dust, 16 empty cell
+centrifuge iron dust, 2 sulfur dust, nil, nil = 3 pyrite dust, nil
+-- too expensive to be practical
+-- centrifuge 4 redstone, 16 sulfur dust, 4 coal dust, 4 gold nugget = 64 netherrack dust, nil
+-- centrifuge 2 aluminium dust, chrome dust, 3 compressed air cell, nil = 9 ruby dust, 3 empty cell
+-- centrifuge 27 silicon cell, 32 pyrite dust, 4 ruby dust, endereye dust = 64 redstone, 27 empty cell
+
+craft rockcutter = diamond, steel ingot, electronic circuit, re-battery
+12.
+12.
+134
+
+craft charge-o-mat = energyflow circuit, gregtech-computercube, chest, lapotronic energyorb
+121
+343
+121
+craft gregtech-computercube = dataorb, glass pane, energyflow circuit, advanced machine block
+123
+242
+321
+craft 4 dataorb = datacontrol circuit, autarchic diamond and gate
+222
+212
+222

@@ -120,7 +120,6 @@ debugme = false
 local yield = yieldeverysec(1)
 
 function resolve(top)
-  yield()
   local forall = foritems
   if top then forall = fortopitems end
   local funforward = nil
@@ -149,22 +148,26 @@ function resolve(top)
     forall(function(k, v)
       if v < 0 and recipe(k, itemdata) then
         if debugme and not k:find("wood") then printf("craft todo %s", k) end
-        table.insert(todo, k)
+        table.insert(todo, {k=k, v=v})
       end
     end)
     local changed = false
     for i,v in ipairs(todo) do changed = true
-      while getnum(v) < 0 do
-        if debugme and not v:find("wood") then printf("craft resolve %s (%i)", v, getnum(v)) end
-        add(mkcraft(recipe(v, itemdata)))
+      local k = v.k
+      local v = v.v
+      local goal = getnum(k) - v
+      while getnum(k) < goal do
+        if debugme then printf("craft resolve %s (%i by %i)", k, getnum(k), v) end
+        add(mkcraft(recipe(k, itemdata)))
       end
     end
     -- do here!
     for i,v in ipairs(todo) do
-      if getnum(v) > 0 then
-        -- printf("craft: %s has %i", v, getnum(v))
-        table.insert(reapplied_items, {k=v, v=getnum(v)})
-        setnum(v, 0)
+      local k = v.k
+      if getnum(k) > 0 then
+        -- printf("craft: %s has %i", k, getnum(k))
+        table.insert(reapplied_items, {k=k, v=getnum(k)})
+        setnum(k, 0)
       end
     end
     addfront()
@@ -176,22 +179,26 @@ function resolve(top)
     forall(function(k, v)
       -- if v < 0 then printf("%s? %s", k, tostring(itemdata[k].mode)) end
       if v < 0 and itemdata[k] and itemdata[k].mode == "machine" then
-        table.insert(todo, k)
+        table.insert(todo, {k=k, v=v})
       end
     end)
     local changed = false
     for i,v in ipairs(todo) do changed = true
-      while getnum(v) < 0 do
-        if debugme then printf("machine resolve %s (%i)", v, getnum(v)) end
-        add(mkmachine(v))
+      local k = v.k
+      local v = v.v
+      local goal = getnum(k) - v
+      while getnum(k) < goal do
+        if debugme then printf("machine resolve %s (%i by %i)", k, getnum(k), v) end
+        add(mkmachine(k))
       end
     end
     -- do here!
     for i,v in ipairs(todo) do
-      if getnum(v) > 0 then
+      local k = v.k
+      if getnum(k) > 0 then
         -- printf("machina: %s has %i", v, getnum(v))
-        table.insert(reapplied_items, {k=v, v=getnum(v)})
-        setnum(v, 0)
+        table.insert(reapplied_items, {k=k, v=getnum(k)})
+        setnum(k, 0)
       end
     end
     addfront()
@@ -199,6 +206,7 @@ function resolve(top)
   end
   local running = true
   while running do
+    yield()
     running = false
     while resolvecrafts() do running = true end
     while resolvemachines() do running = true end
