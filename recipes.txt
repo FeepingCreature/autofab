@@ -21,6 +21,7 @@ define tin ore[64]
 define diamond[64]
 define apatite[64]
 define redstone[64]
+define uu-matter[64]
 define ruby dust[64]
 define bauxite ore[64]
 define sulfur dust[64]
@@ -31,7 +32,6 @@ define silicon cell[64]
 define lapis lazuli[64]
 define glowstone dust[64]
 define uranium ore 30243[64]
-define compressed air cell[64]
 alias wood planks = spruce wood planks[64], oak wood planks[64], fir wood plank[64], jungle wood planks[64], redwood planks[64]
 -- without the broken 2x2 woods
 alias traditional wood planks = spruce wood planks[64], oak wood planks[64], fir wood plank[64], jungle wood planks[64]
@@ -112,6 +112,10 @@ craft 4 redwood planks[64] = redwood log 1315[64]
 craft diamond pickaxe = stick, diamond
 222
 .1.
+.1.
+craft diamond sword = stick, diamond
+.2.
+.2.
 .1.
 craft gold pickaxe = stick, gold ingot
 222
@@ -576,7 +580,7 @@ craft lapotron crystal[1] = lapis lazuli, electronic circuit, energy crystal
 121
 131
 121
-craft iridium plate = iridium ingot, advanced alloy, diamonds
+craft iridium plate[64] = iridium ingot, advanced alloy, diamonds
 121
 232
 121
@@ -643,7 +647,7 @@ roll[power down] 2 mixed metal ingot[64] = 3 refined iron, 3 bronze ingot 13379,
 macerate 4 bauxite dust[64] = bauxite ore
 
 defop centrifuge: centr_side1, centr_side2, centr_side3, centr_side4 = centr_top[down], centr_bot[up]
-centrifuge 16 aluminium dust, titanium dust, 10 hydrogen cell, 6 compressed air cell = 24 bauxite dust, 16 empty cell
+centrifuge 16 aluminium dust[64], titanium dust[64], 10 hydrogen cell[64], 6 compressed air cell[64] = 24 bauxite dust, 16 empty cell
 centrifuge iron dust, 2 sulfur dust, nil, nil = 3 pyrite dust, nil
 -- too expensive to be practical
 -- centrifuge 4 redstone, 16 sulfur dust, 4 coal dust, 4 gold nugget = 64 netherrack dust, nil
@@ -655,15 +659,36 @@ craft rockcutter = diamond, steel ingot, electronic circuit, re-battery
 12.
 134
 
-craft charge-o-mat = energyflow circuit, gregtech-computercube, chest, lapotronic energyorb
+craft charge-o-mat = energyflow circuit, gregtech-computercube, chest, lapotronic energyorb, advanced machine block
 121
 343
-121
-craft gregtech-computercube = dataorb, glass pane, energyflow circuit, advanced machine block
+151
+craft gregtech-computercube[64] = dataorb, glass pane, energyflow circuit, advanced machine block
 123
 242
 321
 craft 4 dataorb = datacontrol circuit, autarchic diamond and gate
+222
+212
+222
+craft ultimate hybrid solar panel = advanced solar panel, lapis lazuli block, coal chunk, enriched sunnarium alloy
+.2.
+313
+434
+compress lapis lazuli block[64] = 9 lapis lazuli
+craft enriched sunnarium alloy = enriched sunnarium, sunnarium alloy
+.1.
+121
+.1.
+craft enriched sunnarium = irradiant uranium, sunnarium
+111
+121
+111
+craft sunnarium[64] = glowstone dust, uu-matter
+222
+111
+222
+craft sunnarium alloy[64] = sunnarium, iridium plate
 222
 212
 222
