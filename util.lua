@@ -200,12 +200,17 @@ function countit(s)
   return count, s
 end
 
+local chestcache = {}
+
 function chest(i)
-  return {
+  if chestcache[i] then return chestcache[i] end
+  local res = {
     chestid = i,
     transferred = 0,
+    datacache = nil,
     filename = function(self) return makechestfilename(self.chestid) end,
     exists = function(self)
+      if self.datacache then return true end -- can be assumed
       fileyield()
       local f = io.open(self:filename(), "r")
       local res = false
@@ -221,6 +226,13 @@ function chest(i)
       if not f then error(string.format("No such chest: %i", self.chestid)) end
       return f
     end,
+    readdata = function(self)
+      if self.datacache then return self.datacache end
+      local f = self:readopen()
+      self.datacache = f:read("*a")
+      f:close()
+      return self.datacache
+    end,
     items = function(self)
       local res = 0
       self:with(function(tbl)
@@ -229,16 +241,11 @@ function chest(i)
       return res
     end,
     with = function(self, fun, passive, reverse)
-      local f = self:readopen()
       local newdata = ""
       local myres = nil
       local count = 1
       if reverse then count = 14 end
       local loopbody = function(number, line)
-        if (count > 1000) then
-          self:close()
-          assert(false)
-        end
         local tbl = {
           count = number,
           item = line,
@@ -249,16 +256,18 @@ function chest(i)
         local res = fun(tbl)
         if type(res) ~= "nil" then myres = res end
         if tbl.count > 0 then
-          local newline = string.format("%i %s", tbl.count, tbl.item)
-          if not reverse then
-            newdata = newdata.."\n"..newline
-          else
-            newdata = newline.."\n"..newdata
+          
+          if not passive then
+            local newline = string.format("%i %s", tbl.count, tbl.item)
+            if not reverse then
+              newdata = newdata.."\n"..newline
+            else
+              newdata = newline.."\n"..newdata
+            end
           end
         end
       end
-      local lines = {}
-      for line in f:lines() do table.insert(lines, line) end
+      local lines = split(self:readdata(), "\n")
       if reverse then
         local backlines = {}
         local len = 0
@@ -275,8 +284,10 @@ function chest(i)
       
       for i,line in ipairs(lines) do
         if myres then -- already returned
-          if not reverse then newdata = newdata.."\n"..line
-          else newdata = line.."\n"..newdata end
+          if not passive then
+            if not reverse then newdata = newdata.."\n"..line
+            else newdata = line.."\n"..newdata end
+          end
         else
           local numstr = split(line, " ")[1]
           if numstr then
@@ -293,11 +304,11 @@ function chest(i)
           loopbody(0, "")
         end
       end
-      f:close()
       if not passive then
         local mydata = strip(newdata).."\n"
+        self.datacache = mydata
         sleep(0) -- yield
-        f = io.open(self:filename(), "w")
+        local f = io.open(self:filename(), "w")
         f:write(mydata)
         f:close()
         
@@ -308,6 +319,9 @@ function chest(i)
     end,
     withp = function(self, fun)
       return self:with(fun, true)
+    end,
+    withprev = function(self, fun)
+      return self:with(fun, true, true)
     end,
     withrev = function(self, fun)
       return self:with(fun, nil, true)
@@ -334,6 +348,8 @@ function chest(i)
       fun()
     end
   }
+  chestcache[i] = res
+  return res
 end
 
 function cleanname(name)
@@ -440,7 +456,7 @@ function perfcheck(info, fun)
     local f = io.open("warnings.txt", "r")
     local data = ""
     if f then
-      data = f:read()
+      data = f:read("*a")
       f:close()
     end
     

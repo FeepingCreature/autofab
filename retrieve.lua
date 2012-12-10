@@ -42,39 +42,45 @@ while left > 0 do
     error(format("out of %s: %i short", item, left))
   end
   failfun = nil
-  -- must retrieve in REVERSE because otherwise item organization will get fucked up bad on store
-  ch:withrev(function(slot)
-    if not failfun and slot.item == item then
-      local tomove = min(slot.count, left)
-      if tomove > 0 then
-        ch:replace(slot.id, function()
-          turtle.select(slot.id)
-          turtle.transferTo(15, tomove)
-          slot.count = slot.count - tomove
-        end)
-        left = left - tomove
-        local space = turtle.getItemSpace(15)
-        local count = turtle.getItemCount(15)
-        local total = space + count
-        if space < left then
-          -- store back
-          tomove = min(count, total - slot.count)
+  -- note: must retrieve in REVERSE because otherwise item organization will get fucked up bad on store
+  -- check to locate item first
+  local found = ch:withprev(function(slot)
+    if slot.item == item then return true end
+  end)
+  if found then -- open for real
+    ch:withrev(function(slot)
+      if not failfun and slot.item == item then
+        local tomove = min(slot.count, left)
+        if tomove > 0 then
           ch:replace(slot.id, function()
-            turtle.select(15)
-            turtle.transferTo(slot.id, tomove)
-            slot.count = slot.count + tomove
+            turtle.select(slot.id)
+            turtle.transferTo(15, tomove)
+            slot.count = slot.count - tomove
           end)
-          left = left + tomove
-          
-          failfun = function ()
-            putback()
-            printf("cannot retrieve %i %s", all, item)
-            error(format("max stack size is %i", total))
+          left = left - tomove
+          local space = turtle.getItemSpace(15)
+          local count = turtle.getItemCount(15)
+          local total = space + count
+          if space < left then
+            -- store back
+            tomove = min(count, total - slot.count)
+            ch:replace(slot.id, function()
+              turtle.select(15)
+              turtle.transferTo(slot.id, tomove)
+              slot.count = slot.count + tomove
+            end)
+            left = left + tomove
+            
+            failfun = function ()
+              putback()
+              printf("cannot retrieve %i %s", all, item)
+              error(format("max stack size is %i", total))
+            end
           end
         end
       end
-    end
-  end)
+    end)
+  end
   if failfun then failfun() end
   i = i + 1
 end
