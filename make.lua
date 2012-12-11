@@ -496,12 +496,72 @@ function gencraftmergerule(num_inputs)
   return res
 end
 
+function genmachinemergerule(num_inputs)
+  local res = {}
+  res.types = {}
+  -- first set
+  for i=1,num_inputs do table.insert(res.types, "fetch"); table.insert(res.types, "deposit") end
+  table.insert(res.types, "pickup"); table.insert(res.types, "store")
+  -- second set
+  for i=1,num_inputs do table.insert(res.types, "fetch"); table.insert(res.types, "deposit") end
+  table.insert(res.types, "pickup"); table.insert(res.types, "store")
+  
+  res.subst = function(...)
+    local args = { ... }
+    local halfpoint = num_inputs*2+2
+    assert(#args == halfpoint*2)
+    
+    local p1 = args[num_inputs*2+1]; local p2 = args[num_inputs*2+1 + halfpoint]
+    local s1 = args[num_inputs*2+2]; local s2 = args[num_inputs*2+2 + halfpoint]
+    assert(p1.type == "pickup" and p2.type == "pickup" and s1.type == "store" and s2.type == "store")
+    if s1.item ~= s2.item or p1.item ~= p2.item or s1.count + s2.count > (itemdata[s1.item].stacksize or -1) then return nil end
+    
+    local res = {}
+    for i=1,num_inputs do
+      local f1 = args[i*2-1]
+      local f2 = args[i*2-1 + halfpoint]; assert(f2.type == "fetch")
+      if f1.item ~= f2.item then return nil end
+      
+      if f1.count + f2.count > (itemdata[f1.item].stacksize or -1) then return nil end
+      
+      local d1 = args[i*2]
+      local d2 = args[i*2 + halfpoint]; assert(d2.type == "deposit")
+      if d1.at ~= d2.at then return nil end
+      
+      table.insert(res, {type = "fetch",   item = f1.item, count = f1.count + f2.count})
+      table.insert(res, {type = "deposit", item = d1.item, count = d1.count + d2.count, at = d1.at, checkempty = f1.checkempty})
+    end
+    table.insert(res, {type = "pickup", item = p1.item, count = p1.count + p2.count, at = p1.at, param = commajoin(p1.param, p2.param)})
+    table.insert(res, {type = "store",  item = s1.item, count = s1.count + s2.count})
+    return res
+  end
+  return res
+end
+
 function commajoin(a, b)
   if not a and not b then return nil end
   if a and not b then return a end
   if b and not a then return b end
   if a == b then return a end
   return a .. "," .. b
+end
+
+function different_devices(at1, at2)
+  local isdevice1 = at1:find("_")
+  local isdevice2 = at2:find("_")
+  if not isdevice1 or not isdevice2 then return false end -- cannot be certain
+  local dev1 = split(at1, "_", 1)[1]
+  local dev2 = split(at2, "_", 1)[1]
+  return dev1 ~= dev2
+end
+
+function same_device(at1, at2)
+  local isdevice1 = at1:find("_")
+  local isdevice2 = at2:find("_")
+  if not isdevice1 or not isdevice2 then return false end -- cannot be certain
+  local dev1 = split(at1, "_", 1)[1]
+  local dev2 = split(at2, "_", 1)[1]
+  return dev1 == dev2
 end
 
 opts = {
@@ -511,6 +571,10 @@ opts = {
   gencraftmergerule(3),
   gencraftmergerule(4),
   gencraftmergerule(5),
+  -- merge identical machine tasks
+  genmachinemergerule(1),
+  genmachinemergerule(2),
+  genmachinemergerule(3),
   -- pickup stuff, store it, craft something: the craft and pick/store tasks are independent
   { types = {"pickup", "store", "craft", "store"},
     subst = function(p, s1, c, s2)
@@ -571,24 +635,9 @@ opts = {
       end
     end
   },
-  -- merge two identical machine ops
-  { types = {"fetch", "deposit", "pickup", "store", "fetch", "deposit", "pickup", "store"},
-    subst = function(f1, d1, p1, s1, f2, d2, p2, s2)
-      if f1.item == f2.item and d1.at == d2.at and
-         p1.at == p2.at and p1.item == p2.item and
-         d1.count + d2.count <= (itemdata[d1.item].stacksize or -1) and
-         p1.count + p2.count <= (itemdata[p1.item].stacksize or -1)
-      then
-        assert(s1.item == s2.item)
-        return {
-          {type = "fetch",   item = f1.item, count = f1.count + f2.count},
-          {type = "deposit", item = d1.item, count = d1.count + d2.count, at = d1.at},
-          {type = "pickup",  item = p1.item, count = p1.count + p2.count, at = p1.at, param = commajoin(p1.param, p2.param)},
-          {type = "store",   item = s1.item, count = s1.count + s2.count}
-        }
-      end
-    end
-  },
+  genmachinemergerule(1),
+  genmachinemergerule(2),
+  genmachinemergerule(3),
   -- do these last so they don't fuck up eventual earlier opts
   { types = {"store", "fetch"},
     subst = function(s, f)
@@ -615,14 +664,6 @@ opts = {
   -- two unrelated tasks in a row? try to interleave them.
   { types = {"pickup", "store", "fetch", "deposit"},
     subst = function(p, s, f, d)
-      function different_devices(at1, at2)
-        local isdevice1 = at1:find("_")
-        local isdevice2 = at2:find("_")
-        if not isdevice1 or not isdevice2 then return false end -- cannot be certain
-        local dev1 = split(at1, "_", 1)[1]
-        local dev2 = split(at2, "_", 1)[1]
-        return dev1 ~= dev2
-      end
       if (s.item ~= f.item and different_devices(p.at, d.at))
       then
         return {f, d, p, s}
@@ -644,6 +685,43 @@ opts = {
       if (a.type == "store" or a.type == "fetch") and a.count == 0 then
         return {}
       end
+    end
+  },
+  -- finally, fuse fetch-to-machine/fetch-from-machine into a faster form
+  { types = {"pickup", "store", "fetch", "deposit"},
+    subst = function(p, s, f, d)
+      if  p.count == s.count and
+          f.count == d.count and
+          s.item ~= f.item
+      then
+        local t_1 = {type="slot-transfer", from = 15, to = 14, count = f.count}
+        local t_2 = {type="slot-transfer", from = 15, to = 13, count = p.count}
+        local t1_ = {type="slot-transfer", from = 14, to = 15, count = f.count}
+        local t2_ = {type="slot-transfer", from = 13, to = 15, count = p.count}
+        return {f, t_1, p, t_2, t1_, d, t2_, s}
+      end
+    end
+  },
+  { steps = 2,
+    subst = function(a, b)
+      if  a.type == "slot-transfer" and b.type == "deposit" and 
+          a.from ~= 15 and a.to ~= 15
+      then return {b, a} end
+    end
+  },
+  { types = {"slot-transfer", "slot-transfer"},
+    subst = function(a, b)
+      if a.count == b.count and a.to == b.from then
+        return {type="slot-transfer", from = a.from, to = b.to, count = a.count}
+      end
+    end
+  },
+  { types = {"slot-transfer", "slot-transfer", "slot-transfer"},
+    subst = function(a, b, c)
+      if  a.from == c.to and c.from == a.to and
+          b.from ~= a.from and b.from ~= a.to and
+          b.to ~= a.from and b.to ~= a.to
+      then return {b} end
     end
   },
 }
@@ -711,34 +789,50 @@ perfcheck("optimize task plan", function()
         changed = changed or opt_changed
     end end
   end
-  printf("optimized: %i => %i", startsize, #items.commands)
+  local len = 0
+  for i,v in ipairs(items.commands) do
+    if v.type ~= "slot-transfer" then len = len + 1 end
+  end
+  printf("optimized: %i => %i(%i total)", startsize, len, #items.commands)
 end)
 
 local planlength = 0
 local data = ""
-for i, v in ipairs(items.commands) do
-  data = data..string.format("%i: ", i)
-  planlength = planlength + 1
+function format_task(v)
   if v.type == "craft" then
-    data = data..format("craft %i x %i '%s'", v.count, v.recipe.count, v.recipe.item)
+    return format("craft %i x %i '%s'", v.count, v.recipe.count, v.recipe.item)
   elseif v.type == "fetch" then
-    data = data..format("fetch %i '%s'", v.count, v.item)
+    return format("fetch %i '%s'", v.count, v.item)
   elseif v.type == "deposit" then
-    data = data..format("deposit %i '%s' at %s", v.count, v.item, v.at)
+    return format("deposit %i '%s' at %s", v.count, v.item, v.at)
   elseif v.type == "pickup" then
-    data = data..format("pick up %i '%s' at %s %s", v.count, v.item, v.at, v.param or "")
+    return format("pick up %i '%s' at %s %s", v.count, v.item, v.at, v.param or "")
     -- if v.machinestate then
     --   data = data..format("[machine state: %i '%s']", v.machinestate.load, v.machinestate.item)
     -- end
   elseif v.type == "store" then
-    data = data..format("store %i %s", v.count, v.item)
+    return format("store %i %s", v.count, v.item)
   elseif v.type == "suckall" then
-    data = data..format("pick up all items")
+    return format("pick up all items")
+  elseif v.type == "slot-transfer" then
+    return format("move slot %i(%i) -> %i", v.from, v.count, v.to)
   else
     print("unknown type: "..v.type)
     assert(false)
   end
-  data = data.."\n"
+end
+
+for i, v in ipairs(items.commands) do
+  if v.type ~= "slot-transfer" then
+    data = data..string.format("%i: ", planlength)
+    planlength = planlength + 1
+  else
+    if planlength < 10 then data = data.." : "
+    elseif planlength < 100 then data = data.."  : "
+    elseif planlength < 1000 then data = data.."   : "
+    else data = data.."    : " end
+  end
+  data = data .. format_task(v) .. "\n"
 end
 
 if planmode then
@@ -781,12 +875,44 @@ if planmode then
 end
 
 local len = 0
-for i,v in ipairs(items.commands) do len = len + 1 end
+local reallen = 0
+for i,v in ipairs(items.commands) do
+  if v.type ~= "slot-transfer" then len = len + 1 end -- effectively free
+  reallen = reallen + 1
+end
 
 local tf = {}
+local count = 0
 for i,v in ipairs(items.commands) do
-  local function update(text, ...) return updatemon(i, len, tf, text, ...) end
-  if v.type == "deposit" then
+  local function update(text, ...) return updatemon(count, len, tf, text, ...) end
+  if v.type ~= "slot-transfer" then count = count + 1 end
+  
+  local function do_pickup(v, slot)
+    slot = slot or 15
+    local at = v.at
+    update("pick up %i '%s' at %s %s", v.count, v.item, at, v.param or "")
+    local down = ends(at, "[down]")
+    local up = ends(at, "[up]")
+    local suckfn = turtle.suck dropfn = turtle.drop
+    if down then at = strip(down); suckfn = turtle.suckDown; dropfn = turtle.dropDown end
+    if up   then at = strip(up)  ; suckfn = turtle.suckUp  ; dropfn = turtle.dropUp   end
+    assert(shell.run("navigate", at))
+    turtle.select(slot)
+    local start = turtle.getItemCount(slot)
+    if (v.param or ""):find("power down") then redstone.setOutput("bottom", true) end
+    while turtle.getItemCount(slot) - start < v.count do
+      suckfn()
+      sleep(0.2)
+    end
+    if (v.param or ""):find("power down") then redstone.setOutput("bottom", false) end
+    local uppicked = turtle.getItemCount(slot) - start
+    if uppicked > v.count then
+      assert(dropfn(uppicked - v.count)) -- make sure we don't have too much
+    end
+  end
+  
+  local function do_deposit(v, slot)
+    slot = slot or 15
     local at = v.at
     update("deposit %i '%s' at %s", v.count, v.item, at)
     printf("deposit %i '%s' at %s", v.count, v.item, at)
@@ -810,33 +936,18 @@ for i,v in ipairs(items.commands) do
         error(format("cannot deposit: %s was not empty!", v.at))
       end
     end
-    turtle.select(15)
+    turtle.select(slot)
     assert(dfun())
+  end
+  
+  if v.type == "pickup" then
+    do_pickup(v)
+  elseif v.type == "deposit" then
+    do_deposit(v)
   elseif v.type == "fetch" then
     update("fetch %i '%s'", v.count, v.item)
     printf("> retrieve %i %s", v.count, v.item)
     assert(shell.run("retrieve", format("%i", v.count), format("%s", v.item)))
-  elseif v.type == "pickup" then
-    local at = v.at
-    update("pick up %i '%s' at %s %s", v.count, v.item, at, v.param or "")
-    local down = ends(at, "[down]")
-    local up = ends(at, "[up]")
-    local suckfn = turtle.suck dropfn = turtle.drop
-    if down then at = strip(down); suckfn = turtle.suckDown; dropfn = turtle.dropDown end
-    if up   then at = strip(up)  ; suckfn = turtle.suckUp  ; dropfn = turtle.dropUp   end
-    assert(shell.run("navigate", at))
-    turtle.select(15)
-    local start = turtle.getItemCount(15)
-    if (v.param or ""):find("power down") then redstone.setOutput("bottom", true) end
-    while turtle.getItemCount(15) - start < v.count do
-      suckfn()
-      sleep(0.2)
-    end
-    if (v.param or ""):find("power down") then redstone.setOutput("bottom", false) end
-    local uppicked = turtle.getItemCount(15) - start
-    if uppicked > v.count then
-      assert(dropfn(uppicked - v.count)) -- make sure we don't have too much
-    end
   elseif v.type == "store" then
     update("store %i '%s'", v.count, v.item)
     assert(shell.run("store", "internal", "yes", format("%i", v.count), format("%s", v.item)))
@@ -847,6 +958,9 @@ for i,v in ipairs(items.commands) do
       turtle.select(i)
       turtle.suck()
     end
+  elseif v.type == "slot-transfer" then
+    turtle.select(v.from)
+    turtle.transferTo(v.to, v.count)
   elseif v.type == "craft" then
     update("craft %ix%i '%s'", v.count, v.recipe.count, v.recipe.item)
     assert(shell.run("navigate", "craftchest"))

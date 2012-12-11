@@ -32,13 +32,13 @@ define silicon cell[64]
 define lapis lazuli[64]
 define glowstone dust[64]
 define uranium ore 30243[64]
+define uranium ore 245[64]
 alias wood planks = spruce wood planks[64], oak wood planks[64], fir wood plank[64], jungle wood planks[64], redwood planks[64]
 -- without the broken 2x2 woods
 alias traditional wood planks = spruce wood planks[64], oak wood planks[64], fir wood plank[64], jungle wood planks[64]
 alias coppers = copper ingot 13380, copper ingot 20257:64, copper
 alias tins = tin ingot 13381, tin ingot 20257:65, tin
 alias bronzes = bronze ingot 13379, bronze
-alias diamonds = diamond, industrial diamond
 defop smelt: efurnace_output = efurnace_input[down]
 smelt stone[64] = cobblestone[64]
 smelt iron ingot[64] = iron dust[64]
@@ -68,6 +68,14 @@ macerate sand[64] = cobblestone[64]
 macerate flint = gravel
 macerate netherrack dust[64] = netherrack
 
+craft lever = stick, cobblestone
+1..
+2..
+...
+craft shears = iron ingot
+.1.
+1..
+...
 craft raw carbon mesh[64] = raw carbon fibre
 11.
 ...
@@ -141,7 +149,7 @@ craft solar panel[64] = glass pane,silicon cell,carbon plate,electronic circuit,
 111
 232
 454
-craft advanced solar panel = irradiant glass pane, advanced alloy, solar panel, advanced circuit, advanced machine block
+craft advanced solar panel[64] = irradiant glass pane, advanced alloy, solar panel, advanced circuit, advanced machine block
 111
 232
 454
@@ -158,6 +166,9 @@ craft irradiant uranium[64] = glowstone dust, refined uranium
 121
 .1.
 compress refined uranium[64] = uranium ore 30243
+-- TODO enable when multi-recipes are supported
+-- macerate 2 uranium dust = uranium ore 245
+-- compress refined uranium[64] = uranium dust
 craft electronic circuit[64] = copper cable,redstone,refined iron
 111
 232
@@ -166,7 +177,7 @@ craft 16 glass pane[64] = glass
 111
 111
 ...
-craft chest = wood planks
+craft chest[64] = wood planks
 111
 1.1
 111
@@ -317,6 +328,14 @@ craft 8 stone pipe[64] = stone, glass
 121
 ...
 ...
+craft 8 iron pipe[64] = iron ingot, glass
+121
+...
+...
+craft 8 diamond pipe[64] = diamond, glass
+121
+...
+...
 craft 8 cobblestone pipe[64] = cobblestone, glass
 121
 ...
@@ -401,7 +420,7 @@ craft advanced circuit[64] = redstone, glowstone dust, lapis lazuli, electronic 
 121
 343
 121
-craft advanced machine block = advanced alloy, carbon plate, machine block
+craft advanced machine block[64] = advanced alloy, carbon plate, machine block
 .1.
 232
 .1.
@@ -435,10 +454,14 @@ craft item frame = stick, leather
 111
 121
 111
-craft overclocker upgrade = 10k coolant cell, copper cable, electronic circuit
-111
-232
+craft overclocker upgrade = 10k coolant cell, 10k coolant cell, 10k coolant cell, copper cable, electronic circuit
+123
+454
 ...
+craft 10k coolant cell = water cell, tins
+.2.
+212
+.2.
 craft electrical engine = tins, glass, tin gear, piston
 111
 .2.
@@ -528,7 +551,7 @@ craft 4 2xins gold cable[64] = rubber, gold ingot
 111
 121
 111
-craft energy crystal[1] = redstone, diamonds
+craft energy crystal[1] = redstone, diamond
 111
 121
 111
@@ -552,6 +575,10 @@ craft lv-transformer = traditional wood planks, copper cable, coppers
 121
 333
 121
+craft mv-transformer = 2xins gold cable, machine block
+.1.
+.2.
+.1.
 -- jesus.
 craft quarry = iron gear, redstone, gold gear, diamond gear, diamond pickaxe
 121
@@ -562,6 +589,10 @@ craft mfe = 2xins gold cable, machine block, energy crystal, energy crystal, ene
 131
 425
 161
+craft mfsu = advanced circuit, mfe, advanced machine block, lapotron crystal, lapotron crystal, lapotron crystal, lapotron crystal, lapotron crystal, lapotron crystal
+417
+528
+639
 craft 4 glass fibre cable = glass, redstone, diamond
 111
 232
@@ -580,11 +611,11 @@ craft lapotron crystal[1] = lapis lazuli, electronic circuit, energy crystal
 121
 131
 121
-craft iridium plate[64] = iridium ingot, advanced alloy, diamonds
+craft iridium plate[64] = iridium ingot, advanced alloy, diamond
 121
 232
 121
-craft teleporter = advanced circuit, frequency transmitter, glass fibre cable, advanced machine block, diamonds
+craft teleporter = advanced circuit, frequency transmitter, glass fibre cable, advanced machine block, diamond
 121
 343
 151
@@ -692,3 +723,39 @@ craft sunnarium alloy[64] = sunnarium, iridium plate
 222
 212
 222
+craft recycler = glowstone dust, compressor, dirt, refined iron
+.1.
+323
+434
+craft 4 insulated hv cable[64] = refined iron, rubber
+.2.
+212
+.2.
+craft 2xins. hv cable[64] = insulated hv cable, rubber
+21.
+...
+...
+craft 4xins. hv cable[64] = 2xins. hv cable, rubber
+21.
+...
+...
+craft eu-splitter cable[64] = redstone, 4xins. hv cable, lever
+.1.
+232
+.1.
+craft adjustable energystorageunit = lapotronic energyorb, lapotronic energyorb, lapotronic energyorb, lapotronic energyorb, gregtech-computercube, lapotronic energyorb, lapotronic energyorb, lapotronic energyorb, lapotronic energyorb
+123
+456
+789
+craft interdimensional storageunit = iridium plate, adjustable energystorageunit, ender chest, teleporter
+121
+232
+141
+craft ender chest = blaze rod, wool, obsidian, chest, ender pearl
+121
+343
+151
+craft stirling engine = cobblestone, glass, stone gear, piston
+111
+.2.
+343

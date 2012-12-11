@@ -235,7 +235,7 @@ function chest(i)
     end,
     items = function(self)
       local res = 0
-      self:with(function(tbl)
+      self:withp(function(tbl)
         if tbl.count > 0 then res = res + 1 end
       end)
       return res
