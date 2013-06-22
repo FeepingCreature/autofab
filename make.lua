@@ -235,10 +235,38 @@ end
 function mkmachine(item)
   local info = itemdata[item]
   assert(info and info.mode == "machine")
-  local fun = nil
-  for i, inputdata in ipairs(info.input) do
-    fun = combine(fun, mkfetch(inputdata.count, inputdata.item, inputdata.at))
+  
+  -- printf("mkmachine %s", item)
+  local function recurse(i, fun)
+    local inputdata = info.input[i]
+    local input = itemdata[inputdata.item]
+    -- printf("recurse: %i being %s - %s", i, inputdata.item, input.mode)
+    local function cont(item)
+      local rfun = combine(fun, mkfetch(inputdata.count, item, inputdata.at))
+      if (i == # info.input) then return rfun end
+      assert(i < # info.input)
+      return recurse(i + 1, rfun)
+    end
+    if (input.mode == "alias") then
+      for i,target in ipairs(input.targets) do
+        start()
+        setnum(target, getnum(target) - inputdata.count)
+        -- printf("try %s by %i", target, inputdata.count)
+        resolve(true)()
+        local ival = topisvalid()
+        rollback()
+        -- printf(" - %s", tostring(ival))
+        if ival then
+          return cont(target)
+        end
+      end
+    end
+    return cont(inputdata.item)
   end
+  local fun = recurse(1, nil)
+  --for i, inputdata in ipairs(info.input) do
+  --  fun = combine(fun, mkfetch(inputdata.count, inputdata.item, inputdata.at))
+  --end
   for i, outputdata in ipairs(info.output) do
     setnum(outputdata.item, getnum(outputdata.item) + outputdata.count)
   end
@@ -650,6 +678,11 @@ opts = {
       end
     end
   },
+  -- store+deposit means store a partial stack, then deposit the rest.
+  -- invert this.
+  { types = {"store", "deposit"},
+    subst = function(a, b) return {b, a} end
+  },
   { types = {"fetch", "store"},
     subst = function(f, s)
       if (f.item == s.item) then
@@ -937,7 +970,7 @@ for i,v in ipairs(items.commands) do
       end
     end
     turtle.select(slot)
-    assert(dfun())
+    assert(dfun(v.count))
   end
   
   if v.type == "pickup" then
