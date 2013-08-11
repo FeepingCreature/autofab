@@ -1,5 +1,3 @@
-define bone
-define leather
 define seeds
 define gold ore
 define iron ore

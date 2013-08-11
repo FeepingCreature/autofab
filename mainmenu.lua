@@ -55,6 +55,10 @@ addchest = function()
   mcheck(frun("makechest"))
 end
 
+addloc = function()
+  mcheck(frun("addloc"))
+end
+
 list = function()
   printheader("  inventory")
   term.write("match = "); local term = read()
@@ -229,8 +233,9 @@ mainmenu["request" ] = request  ; mainmenu[3] = "request"
 mainmenu["plan"    ] = plan     ; mainmenu[4] = "plan"
 mainmenu["upgrade" ] = upgrade  ; mainmenu[5] = "upgrade"
 mainmenu["add chest"]= addchest ; mainmenu[6] = "add chest"
-mainmenu["validate"] = validate ; mainmenu[7] = "validate"
+mainmenu["add location"]=addloc ; mainmenu[7] = "add location"
+mainmenu["validate"] = validate ; mainmenu[8] = "validate"
 mainmenu["exit to shell"]=function() running = false end
-mainmenu[8] = "exit to shell"
+mainmenu[9] = "exit to shell"
 while running do selectmenu(mainmenu) end
 cls()

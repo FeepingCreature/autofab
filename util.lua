@@ -133,29 +133,6 @@ function combine(a, b)
   end
 end
 
-function download(name, to)
-  print(name.." --> "..to)
-  data = http.get("http://feephome.no-ip.org/~feep/ftblua/"..name):readAll()
-  sleep(0) -- yield
-  f = io.open(to, "w")
-  f:write(data)
-  f:close()
-end
-
-function update(file)
-  if file:sub(-3,-1) == ".db" then
-    local name = file:sub(1, -4)..".txt"
-    download(name, file)
-  else
-    local name = file..".lua"
-    download(name, file)
-  end
-end
-
-function goback()
-  shell.run("navigate", "home")
-end
-
 function yieldeverysec(t)
   local last = os.clock()
   return function()
@@ -177,6 +154,44 @@ function withfile(fname, mode)
     f:close()
     return res
   end
+end
+
+function download(name, to)
+  print(name.." --> "..to)
+  local url = "http://feephome.no-ip.org/~feep/ftblua/"..name;
+  local lines = {}
+  if (fs.exists("config.db")) then
+    lines = withfile("config.db", "r")(function(f)
+      local res = {}
+      for line in f:lines() do table.insert(res, line) end
+      return res
+    end)
+  end
+  local recipeurl = "http://piratepad.net/ep/pad/export/feepturtle/latest?format=txt"
+  if (# lines > 0) then recipeurl = lines[1] end
+  if name == "recipes.txt" then
+    url = recipeurl
+  end
+  -- print(url)
+  data = http.get(url):readAll()
+  sleep(0) -- yield
+  f = io.open(to, "w")
+  f:write(data)
+  f:close()
+end
+
+function update(file)
+  if file:sub(-3,-1) == ".db" then
+    local name = file:sub(1, -4)..".txt"
+    download(name, file)
+  else
+    local name = file..".lua"
+    download(name, file)
+  end
+end
+
+function goback()
+  shell.run("navigate", "home")
 end
 
 function starts(text, t2)
@@ -496,6 +511,9 @@ function optmove(movestr)
         :gsub("DFLFLUF", "LFL"):gsub("DFRFRUF", "RFR")
         :gsub("FDRFRFRUF", "L"):gsub("FDLFLFLUF", "R")
         :gsub("FDFDRFFRFFRUFUF", "L"):gsub("FDFDLFFLFFLUFUF", "R")
+        :gsub("UFD", "F"):gsub("DFU", "F")
+        :gsub("FRRUF", "RRU"):gsub("FLLUF", "LLU")
+        :gsub("FDRRF", "DRR"):gsub("FDLLF", "DLL")
       yield()
       changed = movestr ~= start
     end
@@ -580,7 +598,7 @@ function _readrecipes()
     local map = {1,2,3,  5,6,7,  9,10,11}
     local process = nil
     local i = 1
-    for line in f:lines() do
+    function parseline(line)
       line = sslice(line, "--")
       local define = starts(line, "define ");
       local craft = starts(line, "craft ");
@@ -740,6 +758,7 @@ function _readrecipes()
       end
       i = i + 1
     end
+    for line in f:lines() do parseline(line) end
     return res
   end)
 end
@@ -844,6 +863,24 @@ function regenInv()
   return items
 end
 
+function redsend()
+  return {
+    dir = "right",
+    cmd = "",
+    addcmd = function(self, s, ...)
+      s = string.format(s, ...)
+      if self.cmd:len() > 0 then self.cmd = self.cmd .. "; " end
+      self.cmd = self.cmd .. s
+    end,
+    send = function(self)
+      rednet.open(self.dir)
+      if self.cmd then rednet.broadcast("monitor "..self.cmd) end
+      self.cmd = ""
+      rednet.close(self.dir)
+    end,
+  }
+end
+
 function updatemon(i, t, tf, msg, ...)
   if not tf.starttime then
     tf.starttime = os.clock()
@@ -852,9 +889,6 @@ function updatemon(i, t, tf, msg, ...)
   local projected = elapsed
   if i > 1 then projected = (elapsed / (i - 1)) * t end
   msg = string.format(msg, ...)
-  local dir = "right"
-  rednet.open(dir)
-  local cmd = ""
   local function timefmt(t)
     t = math.floor(t)
     local mins = math.floor(t / 60)
@@ -864,26 +898,22 @@ function updatemon(i, t, tf, msg, ...)
     if hours > 0 then return string.format("%ih%im", hours, mins)
     else return string.format("%im%i", mins, t) end
   end
-  local function addcmd(s, ...)
-    s = string.format(s, ...)
-    if cmd:len() > 0 then cmd = cmd .. "; " end
-    cmd = cmd .. s
-  end
   local fixed_i = i
   if fixed_i == t + 1 then fixed_i = t end -- make look good
-  addcmd("local mon = peripheral.wrap(\"top\")")
-  addcmd("term.redirect(mon)")
-  addcmd("local w, h = term.getSize()")
-  addcmd("term.clear()")
-  addcmd("term.setCursorPos(1, 1)")
-  addcmd("term.write(\"%s\")", msg)
-  addcmd("term.setCursorPos(1, h-1)")
-  addcmd("term.write(\"%s eta %s\")", timefmt(elapsed), timefmt(projected - elapsed))
-  addcmd("term.setCursorPos(1, h)")
-  addcmd("term.write(\"[%i / %i]\")", fixed_i, t)
-  addcmd("term.restore()")
-  rednet.broadcast("monitor "..cmd)
-  rednet.close(dir)
+  local rs = redsend()
+  rs:addcmd("term.redirect(mon)")
+  rs:addcmd("local w, h = term.getSize()")
+  rs:addcmd("term.clear()")
+  for i, line in ipairs(split(msg, "\n")) do
+    rs:addcmd("term.setCursorPos(1, %i)", i)
+    rs:addcmd("term.write(\"%s\")", line)
+  end
+  rs:addcmd("term.setCursorPos(1, h-1)")
+  rs:addcmd("term.write(\"%s eta %s\")", timefmt(elapsed), timefmt(projected - elapsed))
+  rs:addcmd("term.setCursorPos(1, h)")
+  rs:addcmd("term.write(\"[%i / %i]\")", fixed_i, t)
+  rs:addcmd("term.restore()")
+  rs:send()
 end
 
 function execmon(dir)
@@ -893,6 +923,7 @@ function execmon(dir)
     senderId, msg, distance = rednet.receive()
     if starts(msg, "monitor ") then
       msg = starts(msg, "monitor ")
+      msg = "local mon = peripheral.wrap(\"top\");"..msg
       local fun = loadstring(msg)
       print("execute "..msg)
       fun()

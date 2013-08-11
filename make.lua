@@ -208,6 +208,14 @@ function resolve(top)
   while running do
     yield()
     running = false
+    local t = 0
+    local c = 0
+    forall(function(k, v)
+      if v < 0 then t = t + v; c = c + 1 end
+    end)
+    local x, y = term.getCursorPos()
+    term.write(""..t.." | -"..c.."     ")
+    term.setCursorPos(x, y)
     while resolvecrafts() do running = true end
     while resolvemachines() do running = true end
   end
@@ -402,7 +410,16 @@ function produce(item, num, tolerant)
   if not isvalid() then
     if tolerant then return end
     printf("could not produce %i '%s' (unknown error)", num, item)
-    printmissing(nil)
+    printmissing()
+    local mis = printmissing(true)
+    local rs = redsend()
+    rs:addcmd("term.redirect(mon)")
+    rs:addcmd("term.clear()")
+    rs:addcmd("term.setCursorPos(1, 1)")
+    rs:addcmd("print(\"could not produce %i '%s'\")", num, item)
+    rs:addcmd("print([===[%s]===])", mis)
+    rs:addcmd("term.restore()")
+    rs:send()
     assert(false)
   end
   f()
@@ -923,7 +940,7 @@ for i,v in ipairs(items.commands) do
   local function do_pickup(v, slot)
     slot = slot or 15
     local at = v.at
-    update("pick up %i '%s' at %s %s", v.count, v.item, at, v.param or "")
+    update("pick up %i '%s'\nat %s %s", v.count, v.item, at, v.param or "")
     local down = ends(at, "[down]")
     local up = ends(at, "[up]")
     local suckfn = turtle.suck dropfn = turtle.drop
@@ -947,7 +964,7 @@ for i,v in ipairs(items.commands) do
   local function do_deposit(v, slot)
     slot = slot or 15
     local at = v.at
-    update("deposit %i '%s' at %s", v.count, v.item, at)
+    update("deposit %i '%s'\nat %s", v.count, v.item, at)
     printf("deposit %i '%s' at %s", v.count, v.item, at)
     local down = ends(at, "[down]")
     local up = ends(at, "[up]")
@@ -970,7 +987,9 @@ for i,v in ipairs(items.commands) do
       end
     end
     turtle.select(slot)
-    assert(dfun(v.count))
+    if not dfun(v.count) then
+      error(format("cannot drop %i %v", v.count, v.item))
+    end
   end
   
   if v.type == "pickup" then

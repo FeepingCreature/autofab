@@ -12,5 +12,7 @@ else
   update("mainmenu")
   update("recipes.db")
   update("makechest")
+  update("move")
+  update("addloc")
   os.reboot()
 end

@@ -39,6 +39,16 @@ if starts_high then startfield = 15 end
 local count = turtle.getItemCount(startfield)
 if count == 0 then error("No items found. Please use slot:1 [and subsequent]. ") end
 
+function checkvalid(item, i)
+  if not item then
+    error(format("unknown item in slot:%i", i))
+  end
+  if not knownitem(item) then error("Unknown item: '"..item.."'") end
+  if readrecipes()[item].mode == "alias" then
+    error(format("'%s' is not an item but an alias set", item))
+  end
+end
+
 if startfield == 1 then
   turtle.select(1)
   local item_map = {} -- storing more than one stack
@@ -47,9 +57,9 @@ if startfield == 1 then
   
   local have_extras = false
   
-  local cur_list_entry = 1
-  item_map[1] = item_list[cur_list_entry]
-  cur_list_entry = cur_list_entry + 1
+  item_map[1] = item_list[1]
+  checkvalid(item_list[1], 1)
+  local cur_list_entry = 2
   for i=2,15 do
     if turtle.getItemCount(i) > 0 then
       turtle.select(i)
@@ -60,11 +70,8 @@ if startfield == 1 then
         end
       end
       if not item_map[i] then
-        if not item_list[cur_list_entry] then
-          error(format("unknown item in slot:%i", i))
-        end
+        checkvalid(item_list[cur_list_entry], cur_list_entry)
         item_map[i] = item_list[cur_list_entry]
-        if not knownitem(item_map[i]) then error("Unknown item: "..item_map[i]) end
         cur_list_entry = cur_list_entry + 1
       end
       have_extras = true
@@ -79,7 +86,9 @@ if startfield == 1 then
       turtle.drop()
     end
     local index = 1
+    local tf = {}
     while true do
+      updatemon(index, #item_map, tf, "%i: Storing %s", index, item_map[index])
       assert(shell.run("store", item_map[index])) -- chests are FIFO
       index = index + 1
       assert(shell.run("navigate", "craftchest"))
